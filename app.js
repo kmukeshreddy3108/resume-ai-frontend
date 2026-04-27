@@ -397,8 +397,6 @@ const App = {
 
         } catch (error) {
             this.showToast(this.getErrorMessage(error, "Login failed"), "error");
-        } finally {
-            if (this.getToken()) return;
             this.setLoading(false);
             this.render("auth", { subView: role });
         }
@@ -453,9 +451,7 @@ const App = {
 
         } catch (error) {
             this.showToast(this.getErrorMessage(error, "Signup failed"), "error");
-        } finally {
             this.setLoading(false);
-            if (window.location.hash.includes('auth/')) return;
             this.render("auth", { subView: role });
         }
     },
@@ -1414,7 +1410,7 @@ const Views = {
                         <h2 style="font-size: 2rem; margin-bottom: 0.5rem;">
                             <span class="text-gradient">${isRecruiter ? 'Recruiter' : 'Student'}</span> Portal
                         </h2>
-                        <p style="color: var(--text-secondary);">Create account or sign in</p>
+                        <p style="color: var(--text-secondary);">Create account or sign in <span style="font-size: 0.7rem; opacity: 0.5;">(v1.0.8)</span></p>
                     </div>
 
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 2rem;">
