@@ -501,15 +501,22 @@ const App = {
                 body: JSON.stringify({ email })
             });
 
+            console.log(`DEBUG: Response from /send-otp:`, response.status);
             const data = await response.json();
-            if (!response.ok) throw new Error(data.detail || "OTP failed");
+            
+            if (!response.ok) {
+                console.error("DEBUG: OTP Request failed:", data);
+                throw new Error(data.detail || "OTP failed");
+            }
 
+            console.log("DEBUG: OTP sent successfully, revealing Step 2");
             this.showToast("Verification code sent!", "success");
             document.getElementById('signup-step-1').style.opacity = '0.5';
             document.getElementById('signup-step-1').style.pointerEvents = 'none';
             document.getElementById('signup-step-2').style.display = 'block';
 
         } catch (error) {
+            console.error("DEBUG: Caught error in sendOtpForSignup:", error);
             this.showToast(this.getErrorMessage(error, "Failed to send code"), "error");
         } finally {
             btn.disabled = false;
@@ -1468,7 +1475,7 @@ const Views = {
                         <h2 style="font-size: 2rem; margin-bottom: 0.5rem;">
                             <span class="text-gradient">${isRecruiter ? 'Recruiter' : 'Student'}</span> Portal
                         </h2>
-                        <p style="color: var(--text-secondary);">Create account or sign in <span style="font-size: 0.7rem; opacity: 0.5;">(v1.0.9)</span></p>
+                        <p style="color: var(--text-secondary);">Create account or sign in <span style="font-size: 0.7rem; opacity: 0.5;">(v1.1.0)</span></p>
                     </div>
 
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 2rem;">
