@@ -982,19 +982,18 @@ const App = {
 
         try {
             const latest = this.state.data.resumes?.[0];
+            const isGreeting = /^(hi|hello|hey|hola|greetings|howdy|hi there|morning|evening|afternoon)(\s|[!?.])?$/i.test(question);
 
-            const message = latest
+            const message = (latest && !isGreeting)
                 ? `
-Student question: ${question}
-
-Latest resume analysis:
+[CONTEXT]
 Job: ${latest.job_title || "-"}
-Company: ${latest.company || "-"}
 Match Score: ${latest.match_score || 0}%
-Matched Skills: ${(latest.matched_skills || []).join(", ") || "None"}
-Missing Skills: ${(latest.missing_skills || []).join(", ") || "None"}
+Skills: ${(latest.matched_skills || []).join(", ") || "None"}
+Missing: ${(latest.missing_skills || []).join(", ") || "None"}
 
-Give practical career guidance.
+[USER QUESTION]
+${question}
 `
                 : question;
 
