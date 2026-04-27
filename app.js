@@ -445,9 +445,31 @@ const App = {
             });
 
             await this.parseResponse(response, "Signup failed");
-            console.log("DEBUG: Signup successful, showing toast...");
-            this.showToast("Account is created", "success");
-            this.navigate(`auth/${role}`);
+            this.showToast("Account created successfully!", "success");
+            
+            // Auto-login after signup
+            this.setLoading(true);
+            const loginResponse = await fetch(`${API_BASE}/login`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email, password })
+            });
+
+            const loginData = await this.parseResponse(loginResponse, "Auto-login failed");
+            const payload = loginData.data || loginData;
+            
+            const user = {
+                email: payload.email,
+                role: payload.role || role,
+                name: payload.email ? payload.email.split("@")[0] : role,
+                id: payload.email || role
+            };
+
+            localStorage.setItem("resumeai_token", payload.access_token);
+            localStorage.setItem("resumeai_user", JSON.stringify(user));
+            this.state.user = user;
+
+            this.navigate(user.role === "recruiter" ? "dashboard-recruiter" : "dashboard-student");
 
         } catch (error) {
             this.showToast(this.getErrorMessage(error, "Signup failed"), "error");
