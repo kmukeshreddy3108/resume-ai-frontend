@@ -393,6 +393,7 @@ const App = {
         } catch (error) {
             this.showToast(this.getErrorMessage(error, "Login failed"), "error");
         } finally {
+            if (this.getToken()) return;
             this.setLoading(false);
             this.render("auth", { subView: role });
         }
@@ -449,6 +450,7 @@ const App = {
             this.showToast(this.getErrorMessage(error, "Signup failed"), "error");
         } finally {
             this.setLoading(false);
+            if (window.location.hash.includes('auth/')) return;
             this.render("auth", { subView: role });
         }
     },
