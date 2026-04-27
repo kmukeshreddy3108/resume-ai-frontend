@@ -2113,17 +2113,6 @@ const Views = {
                 `}
             </div>
 
-            <div class="glass-panel" style="padding: 2.5rem;">
-                <h3 style="margin-bottom: 1rem;">
-                    <i class="ri-robot-2-line" style="color: var(--accent-secondary);"></i>
-                    AI Career Guidance
-                </h3>
-                <p style="color: var(--text-secondary); line-height: 1.7;">
-                    Focus first on the missing skills listed above. Build one small project for each major missing skill,
-                    update your resume with those projects, and then re-upload your resume to check if your match score improves.
-                    In the next Phase 5 step, we will add a chatbot-style assistant that can guide you for this specific job.
-                </p>
-            </div>
         `;
                 }
                 break;
