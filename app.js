@@ -505,16 +505,52 @@ const App = {
             if (!response.ok) throw new Error(data.detail || "OTP failed");
 
             this.showToast("Verification code sent!", "success");
-            
-            // Transition to Step 2
+            document.getElementById('signup-step-1').style.opacity = '0.5';
+            document.getElementById('signup-step-1').style.pointerEvents = 'none';
             document.getElementById('signup-step-2').style.display = 'block';
-            btn.innerHTML = '<i class="ri-check-line"></i> Code Sent';
-            btn.style.opacity = '0.7';
 
-        } catch (err) {
-            this.showToast(this.getErrorMessage(err, "OTP failed"), "error");
+        } catch (error) {
+            this.showToast(this.getErrorMessage(error, "Failed to send code"), "error");
+        } finally {
             btn.disabled = false;
             btn.innerHTML = originalText;
+        }
+    },
+
+    async verifyOtpForSignup() {
+        const email = document.getElementById("signup-email")?.value.trim();
+        const otp = document.getElementById("signup-otp")?.value.trim();
+
+        if (!otp) {
+            this.showToast("Please enter the verification code", "warning");
+            return;
+        }
+
+        const btn = document.getElementById("verify-otp-btn");
+        try {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="ri-loader-4-line ri-spin"></i> Verifying...';
+
+            const response = await fetch(`${API_BASE}/verify-otp`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email, otp })
+            });
+
+            const data = await this.parseResponse(response, "Invalid verification code");
+            
+            this.showToast("Email verified successfully!", "success");
+            
+            // Transition to Step 3
+            document.getElementById('signup-step-2').style.opacity = '0.5';
+            document.getElementById('signup-step-2').style.pointerEvents = 'none';
+            document.getElementById('signup-step-3').style.display = 'block';
+            btn.innerHTML = '<i class="ri-check-line"></i> Verified';
+
+        } catch (err) {
+            this.showToast(this.getErrorMessage(err, "Verification failed"), "error");
+            btn.disabled = false;
+            btn.innerHTML = 'Verify & Continue';
         }
     },
 
@@ -1432,7 +1468,7 @@ const Views = {
                         <h2 style="font-size: 2rem; margin-bottom: 0.5rem;">
                             <span class="text-gradient">${isRecruiter ? 'Recruiter' : 'Student'}</span> Portal
                         </h2>
-                        <p style="color: var(--text-secondary);">Create account or sign in <span style="font-size: 0.7rem; opacity: 0.5;">(v1.0.8)</span></p>
+                        <p style="color: var(--text-secondary);">Create account or sign in <span style="font-size: 0.7rem; opacity: 0.5;">(v1.0.9)</span></p>
                     </div>
 
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 2rem;">
@@ -1475,14 +1511,14 @@ const Views = {
                             </div>
 
                             <!-- Step 2: OTP (Hidden initially) -->
-                            <div id="signup-step-2" style="display: none; margin-top: 1.5rem; animation: fadeIn 0.3s ease;">
+                            <div id="signup-step-2" style="display: none; margin-top: 1.5rem; animation: slideDown 0.4s ease;">
                                 <div class="form-group">
                                     <label class="form-label">Verification Code</label>
                                     <input id="signup-otp" class="form-control" placeholder="Enter 6-digit code" maxlength="6">
                                     <p style="font-size: 0.8rem; color: var(--success); margin-top: 0.5rem;"><i class="ri-mail-check-line"></i> Code sent to your email!</p>
                                 </div>
-                                <button type="button" class="btn btn-outline" style="width: 100%;" onclick="document.getElementById('signup-step-3').style.display='block'; document.getElementById('signup-step-2').style.opacity='0.5';">
-                                    Continue to Password
+                                <button type="button" class="btn btn-primary" style="width: 100%;" onclick="App.verifyOtpForSignup()" id="verify-otp-btn">
+                                    Verify & Continue
                                 </button>
                             </div>
 
