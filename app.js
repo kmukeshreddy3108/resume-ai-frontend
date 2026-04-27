@@ -1734,7 +1734,7 @@ const Views = {
                 </aside>
                 
                 <div class="dashboard-content" style="animation: fadeIn var(--transition-fast);">
-                    ${this.renderDashboardHeader()}
+                    ${App.renderDashboardHeader()}
                     ${content}
                 </div>
             </div>
@@ -2329,7 +2329,7 @@ const Views = {
                 </aside>
                 
                 <div class="dashboard-content" style="animation: fadeIn var(--transition-fast);">
-                    ${this.renderDashboardHeader()}
+                    ${App.renderDashboardHeader()}
                     ${content}
                 </div>
             </div>
