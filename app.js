@@ -286,7 +286,7 @@ const App = {
         const navMenu = document.getElementById('nav-menu');
         if (!this.state.user) {
             navMenu.innerHTML = `
-                <button class="btn btn-ghost" onclick="App.navigate('auth/recruiter')">For Recruiters</button>
+                <button class="btn btn-ghost" onclick="App.navigate('auth/recruiter')">Recruiter</button>
                 <button class="btn btn-primary" onclick="App.navigate('auth/student')">
                     <span>Student Portal</span>
                     <i class="ri-arrow-right-line"></i>
@@ -1412,7 +1412,7 @@ const Views = {
                     
                     <div style="text-align: center; margin-bottom: 2rem;">
                         <h2 style="font-size: 2rem; margin-bottom: 0.5rem;">
-                            <span class="text-gradient">${isRecruiter ? 'Recruiter' : 'Candidate'}</span> Portal
+                            <span class="text-gradient">${isRecruiter ? 'Recruiter' : 'Student'}</span> Portal
                         </h2>
                         <p style="color: var(--text-secondary);">Create account or sign in</p>
                     </div>
@@ -1501,8 +1501,8 @@ const Views = {
             case 'overview':
                 content = `
                     <div class="dashboard-header" style="margin-bottom: 2rem;">
-                        <h2 style="font-size: 2rem;">Overview</h2>
-                        <p style="color: var(--text-secondary);">Recruiter workspace</p>
+                        <h2 style="font-size: 2rem;">Welcome back, ${App.state.user?.name || 'Recruiter'}</h2>
+                        <p style="color: var(--text-secondary);">Recruiter Dashboard • ${App.state.user?.email}</p>
                     </div>
                     
                     <div class="stats-grid">
@@ -1530,8 +1530,8 @@ const Views = {
 
                 content = `
                     <div class="dashboard-header" style="margin-bottom: 2rem;">
-                        <h2 style="font-size: 2rem;">Ranked Candidates</h2>
-                        <p style="color: var(--text-secondary);">View analyzed resumes for a selected job</p>
+                        <h2 style="font-size: 2rem;">Candidate Ranking</h2>
+                        <p style="color: var(--text-secondary);">Analyzing results for your active job postings</p>
                     </div>
 
                     <div class="glass-panel" style="padding: 2rem; margin-bottom: 2rem;">
@@ -1764,8 +1764,8 @@ const Views = {
             case 'overview':
                 content = `
                     <div class="dashboard-header" style="margin-bottom: 2rem;">
-                        <h2 style="font-size: 2rem;">Student Portal</h2>
-                        <p style="color: var(--text-secondary);">Upload resumes and track real analysis results</p>
+                        <h2 style="font-size: 2rem;">Welcome, ${App.state.user?.name || 'Student'}</h2>
+                        <p style="color: var(--text-secondary);">Student Dashboard • ${App.state.user?.email}</p>
                     </div>
                     
                     <div class="stats-grid" style="margin-bottom: 2rem;">
