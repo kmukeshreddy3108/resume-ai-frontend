@@ -64,33 +64,22 @@ const App = {
     },
 
     getErrorMessage(error, fallback = "Something went wrong") {
-        console.error("DEBUG: getErrorMessage received:", error);
+        console.error("DEBUG: Detailed Error Object:", error);
         if (!error) return fallback;
         
         let msg = typeof error === "string" ? error : (error.message || fallback);
         
-        // If message is a JSON string, try to parse it to get the detail
+        if (error.response && error.response.data) {
+            msg = error.response.data.detail || msg;
+        }
+
         if (typeof msg === "string" && (msg.startsWith("{") || msg.startsWith("["))) {
             try {
                 const parsed = JSON.parse(msg);
                 msg = parsed.detail || parsed.message || parsed.error?.message || msg;
-            } catch (e) {
-                // Not valid JSON, keep as is
-            }
+            } catch (e) {}
         }
-
-        if (msg === "[object Object]" && error.detail) {
-            msg = typeof error.detail === "string" ? error.detail : JSON.stringify(error.detail);
-        }
-
-        if (typeof msg === "object") {
-            try {
-                return msg.detail || msg.message || msg.error?.message || JSON.stringify(msg);
-            } catch {
-                return fallback;
-            }
-        }
-
+        
         return typeof msg === "string" ? msg : JSON.stringify(msg);
     },
 
@@ -589,9 +578,14 @@ const App = {
     },
 
     async handleEvaluateAnswer() {
-        const { skill, question } = this.state.interview;
-        const answer = document.getElementById("interview-answer")?.value.trim();
+        const session = this.state.interview || {};
+        const { skill, question } = session;
+        const answerInput = document.getElementById("interview-answer");
+        const answer = answerInput?.value.trim();
         
+        console.log("DEBUG: Evaluating answer for skill:", skill, "Question:", question);
+        console.log("DEBUG: Answer content:", answer);
+
         if (!answer || answer.length < 5) {
             this.showToast("Please provide a more substantial answer.", "warning");
             return;
@@ -599,7 +593,7 @@ const App = {
 
         try {
             this.setLoading(true);
-            this.render("dashboard-student", { subView: "interview" }); // Re-render to show loading
+            this.render("dashboard-student", { subView: "interview" });
 
             const response = await fetch(`${API_BASE}/evaluate-interview`, {
                 method: "POST",
@@ -610,13 +604,20 @@ const App = {
                 body: JSON.stringify({ skill, question, answer })
             });
 
-            const evaluation = await this.parseResponse(response, "Evaluation failed");
+            if (!response.ok) {
+                const errData = await response.json();
+                throw new Error(errData.detail || "AI Evaluation failed");
+            }
+
+            const evaluation = await response.json();
+            console.log("DEBUG: Evaluation Result:", evaluation);
+            
             this.state.interview.evaluation = evaluation;
             this.state.interview.answer = answer;
             
-            this.render("dashboard-student", { subView: "interview" });
             this.showToast("Answer evaluated!", "success");
         } catch (error) {
+            console.error("DEBUG: Evaluation Error:", error);
             this.showToast(this.getErrorMessage(error), "error");
         } finally {
             this.setLoading(false);
