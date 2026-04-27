@@ -575,23 +575,53 @@ const App = {
     },
 
     handlePracticeQuestion(skill, question) {
-        const answer = prompt(`Skill: ${skill}\n\nQuestion: ${question}\n\nYour Answer:`);
-        if (answer === null) return;
+        this.startInterview(skill, question);
+    },
+
+    startInterview(skill, question) {
+        this.state.interview = {
+            skill: skill,
+            question: question,
+            answer: "",
+            evaluation: null
+        };
+        this.render("dashboard-student", { subView: "interview" });
+    },
+
+    async handleEvaluateAnswer() {
+        const { skill, question } = this.state.interview;
+        const answer = document.getElementById("interview-answer")?.value.trim();
         
-        if (answer.trim().length < 10) {
-            this.showToast("Please provide a more detailed answer to get a score.", "warning");
+        if (!answer || answer.length < 5) {
+            this.showToast("Please provide a more substantial answer.", "warning");
             return;
         }
-        
-        let score = Math.min(40 + (answer.length / 5), 95);
-        const keywords = ["concept", "using", "work", "example", "logic", "code"];
-        keywords.forEach(kw => {
-            if (answer.toLowerCase().includes(kw)) score += 5;
-        });
-        
-        score = Math.round(Math.min(score, 100));
-        
-        alert(`Practice Complete!\n\nQuestion: ${question}\n\nYour Answer length: ${answer.length} chars\n\nEstimated Proficiency: ${score}%\n\nKeep practicing to improve!`);
+
+        try {
+            this.setLoading(true);
+            this.render("dashboard-student", { subView: "interview" }); // Re-render to show loading
+
+            const response = await fetch(`${API_BASE}/evaluate-interview`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${this.getToken()}`
+                },
+                body: JSON.stringify({ skill, question, answer })
+            });
+
+            const evaluation = await this.parseResponse(response, "Evaluation failed");
+            this.state.interview.evaluation = evaluation;
+            this.state.interview.answer = answer;
+            
+            this.render("dashboard-student", { subView: "interview" });
+            this.showToast("Answer evaluated!", "success");
+        } catch (error) {
+            this.showToast(this.getErrorMessage(error), "error");
+        } finally {
+            this.setLoading(false);
+            this.render("dashboard-student", { subView: "interview" });
+        }
     },
 
     async handleAnalyze(jobId) {
@@ -1954,8 +1984,14 @@ const Views = {
                                             </h5>
                                             <ul style="list-style: none; padding: 0;">
                                                 ${guide.interview.map(q => `
-                                                    <li style="margin-bottom: 0.75rem; display: flex; gap: 0.75rem; font-size: 0.9rem; color: var(--text-secondary); cursor: pointer;" onclick="App.handlePracticeQuestion('${skill}', '${q.replace(/'/g, "\\'")}')">
-                                                        <i class="ri-chat-voice-line" style="color: var(--success);"></i> ${q}
+                                                    <li style="margin-bottom: 0.75rem; display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; font-size: 0.9rem; color: var(--text-secondary);">
+                                                        <div style="display: flex; gap: 0.75rem;">
+                                                            <i class="ri-chat-voice-line" style="color: var(--success); flex-shrink: 0;"></i> 
+                                                            <span>${q}</span>
+                                                        </div>
+                                                        <button class="btn btn-outline btn-sm" onclick="App.startInterview('${skill}', '${q.replace(/'/g, "\\'")}')" style="font-size: 0.7rem; padding: 0.2rem 0.5rem;">
+                                                            Start <i class="ri-arrow-right-line"></i>
+                                                        </button>
                                                     </li>
                                                 `).join('')}
                                             </ul>
@@ -2099,6 +2135,63 @@ const Views = {
             </form>
         </div>
     `;
+                break;
+            }
+            case 'interview': {
+                const session = App.state.interview || {};
+                const evalResult = session.evaluation;
+                const isLoadingEval = App.state.data.isLoading;
+
+                content = `
+                    <div class="dashboard-header" style="margin-bottom: 2rem;">
+                        <button class="btn btn-ghost" onclick="App.render('dashboard-student', {subView: 'improve'})" style="margin-bottom: 1rem;">
+                            <i class="ri-arrow-left-line"></i> Back to Roadmap
+                        </button>
+                        <h2 style="font-size: 2rem;">Interview Practice: ${session.skill}</h2>
+                    </div>
+
+                    <div class="glass-panel" style="padding: 2.5rem; max-width: 800px; margin: 0 auto;">
+                        <div style="margin-bottom: 2rem; padding: 1.5rem; background: rgba(99, 102, 241, 0.05); border-left: 4px solid var(--accent-primary); border-radius: 8px;">
+                            <h4 style="color: var(--accent-primary); margin-bottom: 0.5rem; font-size: 0.9rem; text-transform: uppercase;">Interview Question</h4>
+                            <p style="font-size: 1.2rem; font-weight: 500;">${session.question}</p>
+                        </div>
+
+                        ${evalResult ? `
+                            <div style="margin-bottom: 2rem; animation: fadeIn 0.4s ease-out;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                                    <h4 style="font-size: 1.1rem; color: ${evalResult.status === 'Correct' ? 'var(--success)' : evalResult.status === 'Incorrect' ? 'var(--danger)' : 'var(--warning)'}">
+                                        ${evalResult.status === 'Correct' ? '✅ Correct' : evalResult.status === 'Incorrect' ? '❌ Incorrect' : '⚠️ ' + evalResult.status}
+                                    </h4>
+                                    <div class="badge badge-primary" style="font-size: 1.2rem; padding: 0.5rem 1rem;">Score: ${evalResult.score}%</div>
+                                </div>
+
+                                <div class="glass-panel" style="padding: 1.5rem; background: rgba(255,255,255,0.02); margin-bottom: 1.5rem;">
+                                    <h5 style="margin-bottom: 0.5rem; font-size: 0.9rem; color: var(--text-muted);">Evaluation Explanation:</h5>
+                                    <p style="line-height: 1.6;">${evalResult.explanation}</p>
+                                </div>
+
+                                <div class="glass-panel" style="padding: 1.5rem; background: rgba(34, 197, 94, 0.05); border: 1px solid rgba(34, 197, 94, 0.1);">
+                                    <h5 style="margin-bottom: 0.5rem; font-size: 0.9rem; color: var(--success);">Model Answer:</h5>
+                                    <p style="line-height: 1.6; font-style: italic;">${evalResult.correct_answer}</p>
+                                </div>
+
+                                <button class="btn btn-primary" onclick="App.render('dashboard-student', {subView: 'improve'})" style="margin-top: 2rem; width: 100%;">
+                                    Try Another Question
+                                </button>
+                            </div>
+                        ` : `
+                            <div class="form-group">
+                                <label class="form-label">Your Answer</label>
+                                <textarea id="interview-answer" class="form-control" rows="8" placeholder="Explain your answer here in detail..." ${isLoadingEval ? 'disabled' : ''}>${session.answer || ''}</textarea>
+                                <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.5rem;">Be specific and use technical terms where applicable.</p>
+                            </div>
+
+                            <button class="btn btn-primary" style="width: 100%; padding: 1rem;" onclick="App.handleEvaluateAnswer()" ${isLoadingEval ? 'disabled' : ''}>
+                                ${isLoadingEval ? '<i class="ri-loader-4-line ri-spin"></i> Evaluating...' : 'Submit Answer for Review'}
+                            </button>
+                        `}
+                    </div>
+                `;
                 break;
             }
         }
