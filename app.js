@@ -741,39 +741,124 @@ const App = {
         }
     },
     getSkillRoadmap(skill) {
-        const cleanSkill = skill || "this skill";
+        const cleanSkill = (skill || "this skill").toLowerCase();
         
         const roadmaps = {
             "python": {
-                steps: ["Install Python & Setup VS Code", "Learn Syntax, Loops, and Functions", "Explore Libraries (Pandas, Requests)", "Build a Web Scraper or CLI tool"],
-                projects: ["Automated File Organizer", "Simple Weather App (using API)", "Personal Budget Tracker"],
-                questions: ["Explain Python's memory management.", "What is the difference between list and tuple?", "How do decorators work?"]
+                why: "Python is the core language for AI, Backend, and Data Science. Companies like Google, Meta, and Netflix rely on it.",
+                phases: [
+                    { title: "Basics", steps: ["Install Python 3.12+ & VS Code", "Learn Syntax: Variables, Loops, Lists, Dicts", "Master Functions & Error Handling"] },
+                    { title: "Intermediate", steps: ["OOP: Classes, Inheritance, Mixins", "Virtual Environments & Pip", "File I/O & JSON handling"] },
+                    { title: "Professional", steps: ["Decorators & Generators", "Concurrency (Asyncio/Multiprocessing)", "Testing with Pytest"] }
+                ],
+                projects: [
+                    { name: "Automation Bot", desc: "Script that cleans your desktop or parses emails." },
+                    { name: "FastAPI Backend", desc: "Build a high-performance REST API with authentication." }
+                ],
+                questions: ["How does Python's GIL impact concurrency?", "Explain the difference between __str__ and __repr__.", "What are list comprehensions and when to avoid them?"],
+                resources: ["Official Python Docs", "Real Python (blog)", "Python Crash Course (book)"]
             },
             "javascript": {
-                steps: ["Learn ES6+ Features", "Understand DOM Manipulation", "Master Asynchronous Programming (Promises/Async)", "Learn a Framework (React/Vue)"],
-                projects: ["Interactive Todo List", "Currency Converter", "Real-time Chat App"],
-                questions: ["What is 'this' keyword in JS?", "Explain closures with an example.", "What is the event loop?"]
+                why: "JavaScript powers the modern web. Mastering it is essential for Frontend and Full-stack roles.",
+                phases: [
+                    { title: "Core", steps: ["Master DOM Selection & Events", "Understand Scope & Closures", "ES6+ (Arrow functions, Destructuring)"] },
+                    { title: "Advanced", steps: ["Promises, Async/Await & Fetch API", "Prototypes & Prototypal Inheritance", "Modules (ESM vs CommonJS)"] }
+                ],
+                projects: [
+                    { name: "Kanban Board", desc: "Drag-and-drop task manager with local storage." },
+                    { name: "Weather Dashboard", desc: "Real-time weather using OpenWeatherMap API." }
+                ],
+                questions: ["What is the Event Loop?", "Difference between '==' and '==='?", "Explain Hoisting in JavaScript."],
+                resources: ["MDN Web Docs", "JavaScript.info", "You Don't Know JS (book)"]
             },
             "react": {
-                steps: ["Understand Components and Props", "Master Hooks (useState, useEffect)", "Learn State Management (Redux/Zustand)", "Master React Router"],
-                projects: ["Portfolio Website", "Movie Search Engine", "E-commerce Product Page"],
-                questions: ["What is Virtual DOM?", "Difference between Functional and Class components?", "How does useEffect work?"]
+                why: "React is the most popular frontend library. It allows you to build highly interactive UIs efficiently.",
+                phases: [
+                    { title: "Fundamentals", steps: ["JSX, Props, and State", "Component Lifecycle & Hooks (useEffect)", "Conditional Rendering"] },
+                    { title: "State Management", steps: ["Context API for Global State", "React Query for Server State", "Redux Toolkit (Optional)"] }
+                ],
+                projects: [
+                    { name: "Movie Search App", desc: "Uses TMDB API with infinite scrolling." },
+                    { name: "Real-time Chat", desc: "Firebase or Socket.io integration." }
+                ],
+                questions: ["What is reconciliation and the Virtual DOM?", "When would you use useMemo vs useCallback?", "How to optimize React performance?"],
+                resources: ["React.dev", "Epic React (Kent C. Dodds)", "Scrimba React Course"]
+            },
+            "sql": {
+                why: "Every data-driven application needs a database. SQL is the language for data retrieval.",
+                phases: [
+                    { title: "Queries", steps: ["SELECT, WHERE, ORDER BY", "Aggregate Functions (SUM, AVG, COUNT)", "GROUP BY & HAVING"] },
+                    { title: "Modeling", steps: ["JOINS (Inner, Left, Right)", "Subqueries & Common Table Expressions (CTEs)", "Indexing & Performance Tuning"] }
+                ],
+                projects: [
+                    { name: "Inventory System", desc: "Relational schema for a retail store." },
+                    { name: "Spotify Clone Schema", desc: "Complex joins for artists, albums, and tracks." }
+                ],
+                questions: ["Difference between WHERE and HAVING?", "What is a Surrogate Key?", "Explain Database Normalization (1NF to 3NF)."],
+                resources: ["SQLBolt", "Mode SQL Tutorial", "Database Design (Coursera)"]
+            },
+            "java": {
+                why: "Java is the backbone of Enterprise software and Android apps. It's known for stability and scale.",
+                phases: [
+                    { title: "Standard", steps: ["JVM vs JRE vs JDK", "Collections Framework (List, Set, Map)", "Generics & Exception Handling"] },
+                    { title: "Enterprise", steps: ["Spring Boot Fundamentals", "Hibernate/JPA for Databases", "Microservices with Spring Cloud"] }
+                ],
+                projects: [
+                    { name: "Banking API", desc: "Secure transaction system using Spring Boot." },
+                    { name: "Employee Management", desc: "Full CRUD app with thymeleaf or React." }
+                ],
+                questions: ["What is the difference between abstraction and encapsulation?", "How does Garbage Collection work?", "Why is Java platform independent?"],
+                resources: ["Java Tutorials by Oracle", "Baeldung (Spring)", "Head First Java"]
+            },
+            "node.js": {
+                why: "Node.js allows using JS for backend. It's fast and uses the same language as your frontend.",
+                phases: [
+                    { title: "Runtime", steps: ["Event Driven Architecture", "Buffer & Stream APIs", "Node Package Manager (NPM)"] },
+                    { title: "Server", steps: ["Express.js Middleware", "RESTful API Best Practices", "JWT Authentication"] }
+                ],
+                projects: [
+                    { name: "File Streaming Server", desc: "Handle large video files without crashing memory." },
+                    { name: "Auth Boilerplate", desc: "Ready-to-use login/signup with MongoDB." }
+                ],
+                questions: ["Explain blocking vs non-blocking I/O.", "What is the purpose of module.exports?", "How to handle uncaught exceptions?"],
+                resources: ["Nodejs.org Docs", "The Odin Project", "Node.js Design Patterns"]
+            },
+            "aws": {
+                why: "Cloud computing is standard. AWS is the market leader in cloud infrastructure.",
+                phases: [
+                    { title: "Compute", steps: ["EC2 Instance Management", "AWS Lambda (Serverless)", "S3 Bucket Storage"] },
+                    { title: "Deploy", steps: ["IAM Roles & Policies", "VPC Networking Basics", "CloudFront CDN"] }
+                ],
+                projects: [
+                    { name: "Static Site Hosting", desc: "Host a React app on S3 with CloudFront." },
+                    { name: "Image Processor", desc: "S3 trigger -> Lambda -> Thumbnail generation." }
+                ],
+                questions: ["What is S3 vs EBS?", "Explain AWS Lambda's cold start.", "What is a VPC?"],
+                resources: ["AWS Training", "Cloud Academy", "A Cloud Guru"]
             }
         };
 
         const defaultRoadmap = {
-            steps: [`Understand core concepts of ${cleanSkill}`, `Build small modules with ${cleanSkill}`, `Implement ${cleanSkill} in a real-world scenario`, `Optimize code written in ${cleanSkill}`],
-            projects: [`${cleanSkill} Dashboard`, `${cleanSkill} Utility Tool`, `Open Source Contribution with ${cleanSkill}`],
-            questions: [`What are the fundamentals of ${cleanSkill}?`, `Best practices for using ${cleanSkill}?`, `Common challenges when working with ${cleanSkill}?`]
+            why: `${skill} is a valuable addition to your tech stack. Mastering it will provide more opportunities in your career path.`,
+            phases: [
+                { title: "Phase 1", steps: [`Learn core syntax of ${skill}`, `Setup development environment for ${skill}`] },
+                { title: "Phase 2", steps: [`Build a small project using ${skill}`, `Learn advanced features of ${skill}`] }
+            ],
+            projects: [
+                { name: `${skill} Utility`, desc: `A basic tool built with ${skill}.` }
+            ],
+            questions: [`What are the core concepts of ${skill}?`, `Common interview questions for ${skill}`],
+            resources: ["Google Search", "Official Documentation", "YouTube Tutorials"]
         };
 
-        const data = roadmaps[cleanSkill.toLowerCase()] || defaultRoadmap;
+        const data = roadmaps[cleanSkill] || defaultRoadmap;
 
         return {
-            why: `${cleanSkill} is highly requested for this role. Mastering it will boost your profile visibility by 20-30%.`,
-            roadmap: data.steps,
+            why: data.why,
+            phases: data.phases,
             projects: data.projects,
-            interview: data.questions
+            interview: data.questions,
+            resources: data.resources
         };
     },
 
@@ -1952,35 +2037,55 @@ const Views = {
                                         ${guide.why}
                                     </p>
 
-                                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem;">
-                                        <div class="glass-panel" style="padding: 1.25rem; background: rgba(255,255,255,0.02);">
-                                            <h5 style="margin-bottom: 1rem; color: var(--accent-primary);">
+                                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem;">
+                                        <div class="glass-panel" style="padding: 1.5rem; background: rgba(255,255,255,0.02);">
+                                            <h5 style="margin-bottom: 1.25rem; color: var(--accent-primary); display: flex; align-items: center; gap: 0.5rem;">
                                                 <i class="ri-direction-line"></i> Learning Path
                                             </h5>
-                                            <ul style="list-style: none; padding: 0;">
-                                                ${guide.roadmap.map((step, idx) => `
-                                                    <li style="margin-bottom: 0.75rem; display: flex; gap: 0.75rem; font-size: 0.9rem; color: var(--text-secondary);">
-                                                        <span style="color: var(--accent-primary); font-weight: bold;">${idx + 1}.</span> ${step}
-                                                    </li>
+                                            <div style="display: flex; flex-direction: column; gap: 1.25rem;">
+                                                ${guide.phases.map((phase, pIdx) => `
+                                                    <div>
+                                                        <div style="font-size: 0.8rem; text-transform: uppercase; color: var(--accent-primary); font-weight: bold; margin-bottom: 0.5rem;">
+                                                            Phase ${pIdx + 1}: ${phase.title}
+                                                        </div>
+                                                        <ul style="list-style: none; padding: 0;">
+                                                            ${phase.steps.map(step => `
+                                                                <li style="margin-bottom: 0.5rem; display: flex; gap: 0.75rem; font-size: 0.9rem; color: var(--text-secondary);">
+                                                                    <i class="ri-checkbox-circle-line" style="color: var(--accent-primary); font-size: 1rem;"></i>
+                                                                    ${step}
+                                                                </li>
+                                                            `).join('')}
+                                                        </ul>
+                                                    </div>
                                                 `).join('')}
-                                            </ul>
+                                            </div>
                                         </div>
 
-                                        <div class="glass-panel" style="padding: 1.25rem; background: rgba(255,255,255,0.02);">
-                                            <h5 style="margin-bottom: 1rem; color: var(--accent-secondary);">
+                                        <div class="glass-panel" style="padding: 1.5rem; background: rgba(255,255,255,0.02);">
+                                            <h5 style="margin-bottom: 1.25rem; color: var(--accent-secondary); display: flex; align-items: center; gap: 0.5rem;">
                                                 <i class="ri-hammer-line"></i> Mini Projects
                                             </h5>
-                                            <ul style="list-style: none; padding: 0;">
+                                            <div style="display: flex; flex-direction: column; gap: 1rem;">
                                                 ${guide.projects.map(proj => `
-                                                    <li style="margin-bottom: 0.75rem; display: flex; gap: 0.75rem; font-size: 0.9rem; color: var(--text-secondary);">
-                                                        <i class="ri-checkbox-circle-line" style="color: var(--accent-secondary);"></i> ${proj}
-                                                    </li>
+                                                    <div style="padding: 1rem; background: rgba(255,255,255,0.03); border-radius: 8px; border: 1px solid var(--border-glass);">
+                                                        <div style="font-weight: 600; margin-bottom: 0.25rem; color: var(--text-primary);">${proj.name}</div>
+                                                        <div style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4;">${proj.desc}</div>
+                                                    </div>
                                                 `).join('')}
-                                            </ul>
+                                            </div>
+
+                                            <h5 style="margin-top: 2rem; margin-bottom: 1rem; color: var(--warning); display: flex; align-items: center; gap: 0.5rem;">
+                                                <i class="ri-links-line"></i> Top Resources
+                                            </h5>
+                                            <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+                                                ${guide.resources.map(res => `
+                                                    <span class="badge" style="background: rgba(245, 158, 11, 0.1); color: var(--warning); border: 1px solid rgba(245, 158, 11, 0.2);">${res}</span>
+                                                `).join('')}
+                                            </div>
                                         </div>
 
-                                        <div class="glass-panel" style="padding: 1.25rem; background: rgba(255,255,255,0.02);">
-                                            <h5 style="margin-bottom: 1rem; color: var(--success);">
+                                        <div class="glass-panel" style="padding: 1.5rem; background: rgba(255,255,255,0.02);">
+                                            <h5 style="margin-bottom: 1.25rem; color: var(--success); display: flex; align-items: center; gap: 0.5rem;">
                                                 <i class="ri-question-answer-line"></i> Interview Prep
                                             </h5>
                                             <ul style="list-style: none; padding: 0;">
@@ -1996,7 +2101,9 @@ const Views = {
                                                     </li>
                                                 `).join('')}
                                             </ul>
-                                            <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.5rem;">Click a question to practice.</p>
+                                            <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border-glass);">
+                                                <i class="ri-information-line"></i> Practice these questions to gain confidence before the real interview.
+                                            </p>
                                         </div>
                                     </div>
                                 </div>
