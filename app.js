@@ -1171,6 +1171,25 @@ ${question}
         });
     },
 
+    renderDashboardHeader() {
+        const profile = this.getProfile();
+        return `
+            <header class="dashboard-top-nav glass-panel" style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 2rem; margin-bottom: 2rem; border-radius: 16px; background: rgba(255,255,255,0.03);">
+                <div style="font-weight: bold; font-size: 1.2rem; color: var(--accent-primary);">
+                    <i class="ri-radar-line"></i> ResumeIQ
+                </div>
+                <div style="display: flex; align-items: center; gap: 1rem;">
+                    <div class="profile-trigger" onclick="App.navigate('dashboard-student/profile')" style="cursor: pointer; display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem; border-radius: 12px; transition: background 0.3s ease;">
+                        <div style="width: 35px; height: 35px; border-radius: 50%; background: var(--gradient-brand); display: flex; align-items: center; justify-content: center; overflow: hidden; font-weight: bold; font-size: 0.9rem;">
+                            ${profile.photo ? `<img src="${profile.photo}" style="width: 100%; height: 100%; object-fit: cover;">` : (profile.name || "S").charAt(0).toUpperCase()}
+                        </div>
+                        <span style="font-size: 0.9rem; font-weight: 500;">${profile.name || "Student"}</span>
+                    </div>
+                </div>
+            </header>
+        `;
+    },
+
     renderRecruiterOverview(allJobs, myJobs) {
         return `
             <div class="dashboard-header" style="margin-bottom: 2rem;">
@@ -1713,6 +1732,7 @@ const Views = {
                 </aside>
                 
                 <div class="dashboard-content" style="animation: fadeIn var(--transition-fast);">
+                    ${this.renderDashboardHeader()}
                     ${content}
                 </div>
             </div>
@@ -2302,16 +2322,12 @@ const Views = {
                         <li class="${subView === 'overview' ? 'active' : ''}"><a href="#dashboard-student/overview"><i class="ri-dashboard-line"></i> Dashboard</a></li>
                         <li class="${subView === 'applications' ? 'active' : ''}"><a href="#dashboard-student/applications"><i class="ri-history-line"></i> Analysis History</a></li>
                         <li class="${subView === 'improve' ? 'active' : ''}"><a href="#dashboard-student/improve"><i class="ri-rocket-line"></i> Improvement Insights</a></li>
-                        <li class="${subView === 'assistant' ? 'active' : ''}">
-    <a href="#dashboard-student/assistant">
-        <i class="ri-robot-2-line"></i> AI Assistant
-    </a>
-</li>
-                        <li class="${subView === 'profile' ? 'active' : ''}"><a href="#dashboard-student/profile"><i class="ri-user-settings-line"></i> My Profile</a></li>
+                        <li class="${subView === 'assistant' ? 'active' : ''}"><a href="#dashboard-student/assistant"><i class="ri-robot-2-line"></i> AI Assistant</a></li>
                     </ul>
                 </aside>
                 
                 <div class="dashboard-content" style="animation: fadeIn var(--transition-fast);">
+                    ${this.renderDashboardHeader()}
                     ${content}
                 </div>
             </div>
