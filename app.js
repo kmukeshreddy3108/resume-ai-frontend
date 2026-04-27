@@ -1176,18 +1176,16 @@ ${question}
     renderDashboardHeader() {
         const profile = this.getProfile();
         return `
-            <header class="dashboard-top-nav glass-panel" style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 2rem; margin-bottom: 2rem; border-radius: 16px; background: rgba(255,255,255,0.03);">
-                <div style="font-weight: bold; font-size: 1.2rem; color: var(--accent-primary);">
-                    <i class="ri-radar-line"></i> ResumeIQ
-                </div>
-                <div style="display: flex; align-items: center; gap: 1rem;">
-                    <div class="profile-trigger" onclick="App.navigate('dashboard-student/profile')" style="cursor: pointer; display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem; border-radius: 12px; transition: background 0.3s ease;">
-                        <div style="width: 35px; height: 35px; border-radius: 50%; background: var(--gradient-brand); display: flex; align-items: center; justify-content: center; overflow: hidden; font-weight: bold; font-size: 0.9rem;">
-                            ${profile.photo ? `<img src="${profile.photo}" style="width: 100%; height: 100%; object-fit: cover;">` : (profile.name || "S").charAt(0).toUpperCase()}
-                        </div>
-                        <span style="font-size: 0.9rem; font-weight: 500;">${profile.name || "Student"}</span>
+            <header class="dashboard-top-nav glass-panel" style="display: flex; justify-content: flex-end; align-items: center; padding: 1rem 2rem; margin-bottom: 2rem; border-radius: 16px; background: rgba(255,255,255,0.03); gap: 1.5rem;">
+                <div class="profile-trigger" onclick="App.navigate('dashboard-student/profile')" style="cursor: pointer; display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem; border-radius: 12px; transition: background 0.3s ease;">
+                    <div style="width: 35px; height: 35px; border-radius: 50%; background: var(--gradient-brand); display: flex; align-items: center; justify-content: center; overflow: hidden; font-weight: bold; font-size: 0.9rem;">
+                        ${profile.photo ? `<img src="${profile.photo}" style="width: 100%; height: 100%; object-fit: cover;">` : (profile.name || "S").charAt(0).toUpperCase()}
                     </div>
+                    <span style="font-size: 0.9rem; font-weight: 500;">${profile.name || "Student"}</span>
                 </div>
+                <button class="btn btn-outline btn-sm" onclick="App.logout()" style="border-color: rgba(239, 68, 68, 0.3); color: var(--danger); padding: 0.4rem 0.8rem; font-size: 0.8rem;">
+                    <i class="ri-logout-box-r-line"></i> Logout
+                </button>
             </header>
         `;
     },
