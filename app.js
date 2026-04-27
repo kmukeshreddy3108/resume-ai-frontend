@@ -460,15 +460,21 @@ const App = {
         }
     },
 
-    async sendOtp() {
+    async sendOtpForSignup() {
         const email = document.getElementById("signup-email")?.value.trim();
 
         if (!email) {
-            this.showToast("Enter email first", "warning");
+            this.showToast("Please enter your email first", "warning");
             return;
         }
 
+        const btn = document.getElementById("send-otp-btn");
+        const originalText = btn.innerHTML;
+
         try {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="ri-loader-4-line ri-spin"></i> Sending...';
+
             const response = await fetch(`${API_BASE}/send-otp`, {
                 method: "POST",
                 headers: {
@@ -478,13 +484,19 @@ const App = {
             });
 
             const data = await response.json();
-
             if (!response.ok) throw new Error(data.detail || "OTP failed");
 
-            this.showToast("OTP sent to your email!", "success");
+            this.showToast("Verification code sent!", "success");
+            
+            // Transition to Step 2
+            document.getElementById('signup-step-2').style.display = 'block';
+            btn.innerHTML = '<i class="ri-check-line"></i> Code Sent';
+            btn.style.opacity = '0.7';
 
         } catch (err) {
             this.showToast(this.getErrorMessage(err, "OTP failed"), "error");
+            btn.disabled = false;
+            btn.innerHTML = originalText;
         }
     },
 
@@ -1433,35 +1445,47 @@ const Views = {
 
                     <div id="signup-box" style="display: none;">
                         <form onsubmit="App.handleSignup(event, '${role}')">
-                            <div class="form-group">
-                                <label class="form-label">Email Address</label>
-                                <input id="signup-email" type="email" class="form-control" placeholder="user@example.com" required ${isLoading ? 'disabled' : ''}>
+                            <!-- Step 1: Email -->
+                            <div id="signup-step-1">
+                                <div class="form-group">
+                                    <label class="form-label">Email Address</label>
+                                    <input id="signup-email" type="email" class="form-control" placeholder="user@example.com" required ${isLoading ? 'disabled' : ''}>
+                                </div>
+                                <button type="button" class="btn btn-primary" style="width: 100%;" onclick="App.sendOtpForSignup()" id="send-otp-btn">
+                                    Send Verification Code
+                                </button>
                             </div>
-                           <div class="form-group">
-    <label class="form-label">Password</label>
-    <input id="signup-password" type="password" class="form-control" placeholder="Enter password" required>
 
-    <small style="color: var(--text-secondary); font-size: 0.8rem;">
-        6–72 chars, include uppercase, lowercase, number & special character
-    </small>
-</div>
-                           <div class="form-group">
-    <label class="form-label">Confirm Password</label>
-    <input id="signup-confirm-password" type="password" class="form-control" placeholder="Re-enter password" required ${isLoading ? 'disabled' : ''}>
-</div>
+                            <!-- Step 2: OTP (Hidden initially) -->
+                            <div id="signup-step-2" style="display: none; margin-top: 1.5rem; animation: fadeIn 0.3s ease;">
+                                <div class="form-group">
+                                    <label class="form-label">Verification Code</label>
+                                    <input id="signup-otp" class="form-control" placeholder="Enter 6-digit code" maxlength="6">
+                                    <p style="font-size: 0.8rem; color: var(--success); margin-top: 0.5rem;"><i class="ri-mail-check-line"></i> Code sent to your email!</p>
+                                </div>
+                                <button type="button" class="btn btn-outline" style="width: 100%;" onclick="document.getElementById('signup-step-3').style.display='block'; document.getElementById('signup-step-2').style.opacity='0.5';">
+                                    Continue to Password
+                                </button>
+                            </div>
 
-<div class="form-group">
-    <label class="form-label">OTP</label>
-    <input id="signup-otp" class="form-control" placeholder="Enter OTP">
-</div>
+                            <!-- Step 3: Password (Hidden initially) -->
+                            <div id="signup-step-3" style="display: none; margin-top: 1.5rem; animation: fadeIn 0.3s ease;">
+                                <div class="form-group">
+                                    <label class="form-label">Create Password</label>
+                                    <input id="signup-password" type="password" class="form-control" placeholder="••••••••" required>
+                                    <small style="color: var(--text-secondary); font-size: 0.75rem;">
+                                        Min 6 chars, uppercase, lowercase, number & symbol
+                                    </small>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Confirm Password</label>
+                                    <input id="signup-confirm-password" type="password" class="form-control" placeholder="••••••••" required>
+                                </div>
 
-<button type="button" class="btn btn-secondary" onclick="App.sendOtp()" style="margin-bottom: 1rem;">
-    Send OTP
-</button>
-
-                            <button type="submit" class="btn btn-primary" style="width: 100%; padding: 0.8rem; font-size: 1.1rem; border-radius: 8px;" ${isLoading ? 'disabled' : ''}>
-                                ${isLoading ? 'Creating Account...' : 'Create Account'}
-                            </button>
+                                <button type="submit" class="btn btn-primary" style="width: 100%; padding: 0.8rem; font-size: 1.1rem; border-radius: 8px;" ${isLoading ? 'disabled' : ''}>
+                                    ${isLoading ? '<i class="ri-loader-4-line ri-spin"></i> Creating Account...' : 'Complete Registration'}
+                                </button>
+                            </div>
                         </form>
                     </div>
                 </div>
