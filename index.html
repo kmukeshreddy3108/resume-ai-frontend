@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Resume Analyser</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body class="dark-theme">
+
+    <nav class="navbar glass-effect">
+        <div class="container nav-container">
+
+            <div class="nav-brand" onclick="App.navigate('landing')">
+                <i class="ri-brain-line"></i>
+                <span>AI Resume <span class="text-gradient">Analyser</span></span>
+            </div>
+
+            <div class="nav-menu" id="nav-menu">
+                <button class="btn btn-ghost" onclick="App.navigate('auth/recruiter')">
+                    For Recruiters
+                </button>
+
+                <button class="btn btn-primary" onclick="App.navigate('auth/student')">
+                    Student Portal
+                </button>
+            </div>
+
+        </div>
+    </nav>
+
+    <main id="app-root" class="container"></main>
+
+    <div id="toast-container"></div>
+
+    <script src="app.js"></script>
+
+</body>
+
+</html>
