@@ -2,13 +2,17 @@
  * Application Core Logic
  * Handles Routing, State Management, and View Rendering
  */
-const API_BASE = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
-    ? "http://localhost:8000"
-    : "https://resume-ai-backend-fgy7.onrender.com";
+const API_BASE = (
+    window.location.hostname === "localhost" || 
+    window.location.hostname === "127.0.0.1" || 
+    window.location.protocol === "file:" || 
+    !window.location.hostname
+) ? "http://localhost:8000" : "https://resume-ai-backend-fgy7.onrender.com";
 
 const App = {
     state: {
         user: null,
+        isInitializing: false,
         currentView: 'landing',
         data: {
             resumes: [],
@@ -26,14 +30,12 @@ const App = {
     studentChartInstance: null,
     recruiterChartInstance: null,
 
-    init() {
+    async init() {
         console.log('AI Resume Analyser Initialized');
 
-        const savedUser = localStorage.getItem("resumeai_user");
-        const savedToken = localStorage.getItem("resumeai_token");
-
-        if (savedUser && savedToken) {
-            this.state.user = JSON.parse(savedUser);
+        const savedToken = this.getToken();
+        if (savedToken) {
+            await this.verifyToken();
         }
 
         const hash = window.location.hash.slice(1);
@@ -49,6 +51,40 @@ const App = {
                 this.handleRoute(newHash);
             }
         });
+    },
+
+    async verifyToken() {
+        const token = this.getToken();
+        if (!token) return;
+
+        try {
+            this.state.isInitializing = true;
+            this.updateNav();
+
+            const response = await fetch(`${API_BASE}/verify-token`, {
+                headers: { "Authorization": `Bearer ${token}` }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                const payload = data.data;
+                this.state.user = {
+                    email: payload.email,
+                    role: payload.role,
+                    name: payload.email.split("@")[0],
+                    id: payload.email
+                };
+                localStorage.setItem("resumeai_user", JSON.stringify(this.state.user));
+            } else {
+                this.logout(true); // Silent logout
+            }
+        } catch (error) {
+            console.error("Token verification failed:", error);
+            this.logout(true);
+        } finally {
+            this.state.isInitializing = false;
+            this.updateNav();
+        }
     },
 
     getToken() {
@@ -262,20 +298,28 @@ const App = {
 
         this.state.currentView = view;
 
-        if (this.state.user && view === 'dashboard-student') {
-            await this.fetchResumes();
-            await this.fetchJobs();
-        }
+        if (this.state.user) {
+            this.setLoading(true);
+            this.render(view, { subView }); // Render immediate UI shell
 
-        if (this.state.user && view === 'dashboard-recruiter') {
-            await this.fetchJobs();
-            const myJobs = await this.fetchMyJobs();
-
-            if (subView === "candidates" && myJobs.length) {
-                const currentSelected = this.state.data.selectedJobId;
-                const jobIdToLoad = currentSelected || myJobs[0].id;
-                await this.fetchJobResults(jobIdToLoad);
+            const fetches = [];
+            if (view === 'dashboard-student') {
+                fetches.push(this.fetchResumes(), this.fetchJobs());
+            } else if (view === 'dashboard-recruiter') {
+                fetches.push(this.fetchJobs(), this.fetchMyJobs());
             }
+
+            if (fetches.length) {
+                await Promise.all(fetches);
+                
+                // Secondary fetch for candidates if needed
+                if (view === 'dashboard-recruiter' && subView === "candidates" && this.state.data.myJobs.length) {
+                    const currentSelected = this.state.data.selectedJobId;
+                    const jobIdToLoad = currentSelected || this.state.data.myJobs[0].id;
+                    await this.fetchJobResults(jobIdToLoad);
+                }
+            }
+            this.setLoading(false);
         }
 
         this.render(view, { subView });
@@ -284,28 +328,41 @@ const App = {
 
     updateNav() {
         const navMenu = document.getElementById('nav-menu');
+        if (!navMenu) return;
+
+        if (this.state.isInitializing) {
+            navMenu.innerHTML = `<div style="color: var(--text-muted); font-size: 0.8rem;"><i class="ri-loader-4-line ri-spin"></i> Checking session... <span style="opacity: 0.5;">v1.2.1</span></div>`;
+            return;
+        }
+
         if (!this.state.user) {
             navMenu.innerHTML = `
-                <button class="btn btn-ghost" onclick="App.navigate('auth/recruiter')">Recruiter</button>
-                <button class="btn btn-primary" onclick="App.navigate('auth/student')">
-                    <span>Student Portal</span>
-                    <i class="ri-arrow-right-line"></i>
+                <button class="btn btn-sm" style="background: linear-gradient(135deg, #a855f7, #ec4899); color: white; border: none;" onclick="App.navigate('auth/recruiter')">
+                    <i class="ri-building-line"></i> Recruiter Portal
+                </button>
+                <button class="btn btn-sm" style="background: linear-gradient(135deg, #6366f1, #a855f7); color: white; border: none;" onclick="App.navigate('auth/student')">
+                    <i class="ri-graduation-cap-line"></i> Student Portal
                 </button>
             `;
         } else {
             const role = this.state.user.role;
             const dashRoute = role === 'recruiter' ? 'dashboard-recruiter' : 'dashboard-student';
             const profile = this.getProfile();
+
             navMenu.innerHTML = `
-                <div style="display: flex; align-items: center; gap: 2rem;">
-                    <button class="btn btn-ghost" onclick="App.navigate('${dashRoute}')">Dashboard</button>
-                    <div style="display: flex; flex-direction: column; align-items: center; gap: 0.25rem;">
-                        <div onclick="App.navigate('${dashRoute}/profile')" style="width: 40px; height: 40px; border-radius: 50%; background: var(--gradient-brand); display: flex; align-items: center; justify-content: center; overflow: hidden; cursor: pointer; border: 2px solid rgba(255,255,255,0.1);">
-                            ${profile.photo ? `<img src="${profile.photo}" style="width: 100%; height: 100%; object-fit: cover;">` : (profile.name || "S").charAt(0).toUpperCase()}
+                <div style="display: flex; align-items: center; gap: 1.5rem;">
+                    <div style="font-size: 0.7rem; color: var(--text-muted); font-weight: 500; letter-spacing: 0.5px;">v1.2.1</div>
+                    <a href="#${dashRoute}" class="nav-link" style="font-weight: 600; color: var(--text-primary);">Dashboard</a>
+                    <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.25rem 0.75rem; background: var(--bg-glass); border: 1px solid var(--border-glass); border-radius: 99px;">
+                        <div style="text-align: right; line-height: 1.1;">
+                            <div style="font-size: 0.85rem; font-weight: 600;">${profile.name || 'User'}</div>
+                            <div style="font-size: 0.7rem; color: var(--accent-primary); font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">${role}</div>
                         </div>
-                        <span style="font-size: 0.7rem; color: var(--text-secondary); font-weight: 500;">${profile.name || "Student"}</span>
+                        <div onclick="App.navigate('${dashRoute}/profile')" style="width: 38px; height: 38px; border-radius: 50%; background: var(--gradient-brand); border: 2px solid var(--bg-surface); cursor: pointer; overflow: hidden; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 10px rgba(0,0,0,0.2);">
+                            ${profile.photo ? `<img src="${profile.photo}" style="width: 100%; height: 100%; object-fit: cover;">` : `<i class="ri-user-3-line"></i>`}
+                        </div>
                     </div>
-                    <button class="btn btn-primary btn-sm" onclick="App.logout()">
+                    <button class="btn btn-sm btn-ghost" onclick="App.logout()" style="color: var(--danger);">
                         <i class="ri-logout-box-r-line"></i> Logout
                     </button>
                 </div>
@@ -313,7 +370,7 @@ const App = {
         }
     },
 
-    logout() {
+    logout(silent = false) {
         this.state.user = null;
         this.state.data.resumes = [];
         this.state.data.jobs = [];
@@ -337,8 +394,11 @@ const App = {
 
         localStorage.removeItem("resumeai_user");
         localStorage.removeItem("resumeai_token");
-        this.navigate('landing');
-        this.showToast('Logged out successfully', 'success');
+        
+        if (!silent) {
+            this.navigate('landing');
+            this.showToast('Logged out successfully', 'success');
+        }
     },
 
     async handleLogin(event, role) {
@@ -444,7 +504,9 @@ const App = {
                 })
             });
 
-            await this.parseResponse(response, "Signup failed");
+            console.log(`DEBUG: [signup] Response Status:`, response.status);
+            const signupData = await this.parseResponse(response, "Signup failed");
+            console.log(`DEBUG: [signup] Response Data:`, signupData);
             this.showToast("Account created successfully!", "success");
             
             // Auto-login after signup
@@ -501,8 +563,9 @@ const App = {
                 body: JSON.stringify({ email })
             });
 
-            console.log(`DEBUG: Response from /send-otp:`, response.status);
+            console.log(`DEBUG: [send-otp] Response Status:`, response.status);
             const data = await response.json();
+            console.log(`DEBUG: [send-otp] Response Data:`, data);
             
             if (!response.ok) {
                 console.error("DEBUG: OTP Request failed:", data);
@@ -518,6 +581,11 @@ const App = {
         } catch (error) {
             console.error("DEBUG: Caught error in sendOtpForSignup:", error);
             this.showToast(this.getErrorMessage(error, "Failed to send code"), "error");
+            
+            // Reset UI state on error
+            document.getElementById('signup-step-1').style.opacity = '1';
+            document.getElementById('signup-step-1').style.pointerEvents = 'all';
+            document.getElementById('signup-step-2').style.display = 'none';
         } finally {
             btn.disabled = false;
             btn.innerHTML = originalText;
@@ -544,7 +612,9 @@ const App = {
                 body: JSON.stringify({ email, otp })
             });
 
+            console.log(`DEBUG: [verify-otp] Response Status:`, response.status);
             const data = await this.parseResponse(response, "Invalid verification code");
+            console.log(`DEBUG: [verify-otp] Response Data:`, data);
             
             this.showToast("Email verified successfully!", "success");
             
@@ -556,6 +626,12 @@ const App = {
 
         } catch (err) {
             this.showToast(this.getErrorMessage(err, "Verification failed"), "error");
+            
+            // Reset UI state on error
+            document.getElementById('signup-step-2').style.opacity = '1';
+            document.getElementById('signup-step-2').style.pointerEvents = 'all';
+            document.getElementById('signup-step-3').style.display = 'none';
+            
             btn.disabled = false;
             btn.innerHTML = 'Verify & Continue';
         }
@@ -664,7 +740,6 @@ const App = {
         const answer = answerInput?.value.trim();
         
         console.log("DEBUG: Evaluating answer for skill:", skill, "Question:", question);
-        console.log("DEBUG: Answer content:", answer);
 
         if (!answer || answer.length < 5) {
             this.showToast("Please provide a more substantial answer.", "warning");
@@ -672,6 +747,16 @@ const App = {
         }
 
         try {
+            // BACKEND BUG FIX: Ensure interview state exists
+            if (!this.state.interview) {
+                console.error("DEBUG: Lost interview session state!");
+                this.showToast("Session expired. Please restart the practice.", "error");
+                return;
+            }
+
+            // Save answer immediately so it's preserved during the loading render
+            this.state.interview.answer = answer;
+            
             this.setLoading(true);
             this.render("dashboard-student", { subView: "interview" });
 
@@ -693,7 +778,6 @@ const App = {
             console.log("DEBUG: Evaluation Result:", evaluation);
             
             this.state.interview.evaluation = evaluation;
-            this.state.interview.answer = answer;
             
             this.showToast("Answer evaluated!", "success");
         } catch (error) {
@@ -992,8 +1076,11 @@ const App = {
         localStorage.setItem("resumeai_user", JSON.stringify(this.state.user));
 
         this.showToast("Profile updated successfully!", "success");
+        
+        const dashRoute = this.state.user.role === 'recruiter' ? 'dashboard-recruiter' : 'dashboard-student';
+        
         setTimeout(() => {
-            this.render("dashboard-student", { subView: "profile" });
+            this.render(dashRoute, { subView: "profile" });
         }, 100);
         this.updateNav();
     },
@@ -1022,7 +1109,8 @@ const App = {
 
             // Force full UI refresh
             this.state.user = { ...this.state.user };
-            this.render("dashboard-student", { subView: "profile" });
+            const dashRoute = this.state.user.role === 'recruiter' ? 'dashboard-recruiter' : 'dashboard-student';
+            this.render(dashRoute, { subView: "profile" });
         };
 
         reader.readAsDataURL(file);
@@ -1037,86 +1125,89 @@ const App = {
         if (!input || !chatBox) return;
 
         const question = input.value.trim();
+        if (!question) return;
 
-        if (!question) {
-            this.showToast("Please type a question", "warning");
-            return;
-        }
-
-        chatBox.innerHTML += `
-        <div style="margin-bottom: 1rem; text-align: right;">
-            <div style="display: inline-block; background: var(--accent-primary); padding: 0.75rem 1rem; border-radius: 12px; max-width: 80%;">
-                ${question}
+        // User message
+        chatBox.insertAdjacentHTML('beforeend', `
+            <div style="margin-bottom: 1.5rem; text-align: right; animation: slideInRight 0.3s ease;">
+                <div style="display: inline-block; background: var(--gradient-brand); color: white; padding: 0.85rem 1.25rem; border-radius: 18px 18px 4px 18px; max-width: 85%; box-shadow: 0 4px 15px rgba(0,0,0,0.1); font-weight: 500;">
+                    ${question}
+                </div>
             </div>
-        </div>
-
-        <div id="chatbot-loading" style="margin-bottom: 1rem; text-align: left;">
-            <div style="display: inline-block; background: rgba(255,255,255,0.08); padding: 0.75rem 1rem; border-radius: 12px; max-width: 80%; color: var(--text-secondary);">
-                Thinking...
-            </div>
-        </div>
-    `;
-
+        `);
+        
         input.value = "";
         chatBox.scrollTop = chatBox.scrollHeight;
 
+        // Loading indicator
+        const loadingId = "ai-loading-" + Date.now();
+        chatBox.insertAdjacentHTML('beforeend', `
+            <div id="${loadingId}" style="margin-bottom: 1.5rem; text-align: left; animation: slideInLeft 0.3s ease;">
+                <div style="display: inline-block; background: rgba(255,255,255,0.05); border: 1px solid var(--border-glass); padding: 0.85rem 1.25rem; border-radius: 18px 18px 18px 4px; max-width: 85%; color: var(--text-secondary);">
+                    <i class="ri-loader-4-line ri-spin"></i> AI is thinking...
+                </div>
+            </div>
+        `);
+        chatBox.scrollTop = chatBox.scrollHeight;
+
         try {
-            const latest = this.state.data.resumes?.[0];
-            const isGreeting = /^(hi|hello|hey|hola|greetings|howdy|hi there|morning|evening|afternoon)(\s|[!?.])?$/i.test(question);
-
-            const message = (latest && !isGreeting)
-                ? `
-[CONTEXT]
-Job: ${latest.job_title || "-"}
-Match Score: ${latest.match_score || 0}%
-Skills: ${(latest.matched_skills || []).join(", ") || "None"}
-Missing: ${(latest.missing_skills || []).join(", ") || "None"}
-
-[USER QUESTION]
-${question}
-`
-                : question;
-
+            const context = this.getChatContext();
+            
             const response = await fetch(`${API_BASE}/chat`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                     "Authorization": `Bearer ${this.getToken()}`
                 },
-                body: JSON.stringify({ message })
+                body: JSON.stringify({ message: question, context })
             });
 
+            const loadingEl = document.getElementById(loadingId);
+            if (loadingEl) loadingEl.remove();
+
+            if (!response.ok) throw new Error("Assistant is temporarily unavailable.");
+
             const data = await response.json();
+            // BACKEND FIX: Expecting success wrapper or direct response
+            const aiMessage = (data.data?.response || data.reply || data.response || "I'm sorry, I couldn't process that.");
 
-            if (!response.ok) {
-                throw new Error(data.detail || "AI response failed");
-            }
-
-            const loadingBubble = document.getElementById("chatbot-loading");
-            if (loadingBubble) loadingBubble.remove();
-
-            chatBox.innerHTML += `
-            <div style="margin-bottom: 1rem; text-align: left;">
-                <div style="display: inline-block; background: rgba(255,255,255,0.08); padding: 0.75rem 1rem; border-radius: 12px; max-width: 80%; color: var(--text-secondary); white-space: pre-wrap;">
-                    ${data.reply}
+            chatBox.insertAdjacentHTML('beforeend', `
+                <div style="margin-bottom: 1.5rem; text-align: left; animation: slideInLeft 0.3s ease;">
+                    <div style="display: inline-block; background: rgba(255,255,255,0.08); border: 1px solid var(--border-glass-strong); padding: 1.25rem; border-radius: 18px 18px 18px 4px; max-width: 90%; color: var(--text-primary); line-height: 1.6; font-size: 0.95rem;">
+                        ${this.formatChatResponse(aiMessage)}
+                    </div>
                 </div>
-            </div>
-        `;
-
+            `);
         } catch (error) {
-            const loadingBubble = document.getElementById("chatbot-loading");
-            if (loadingBubble) loadingBubble.remove();
-
-            chatBox.innerHTML += `
-            <div style="margin-bottom: 1rem; text-align: left;">
-                <div style="display: inline-block; background: rgba(239,68,68,0.12); padding: 0.75rem 1rem; border-radius: 12px; max-width: 80%; color: var(--danger);">
-                    ${this.getErrorMessage(error)}
+            const loadingEl = document.getElementById(loadingId);
+            if (loadingEl) loadingEl.remove();
+            
+            chatBox.insertAdjacentHTML('beforeend', `
+                <div style="margin-bottom: 1.5rem; text-align: left;">
+                    <div style="display: inline-block; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); padding: 0.75rem 1rem; border-radius: 12px; font-size: 0.9rem; color: var(--danger);">
+                        <i class="ri-error-warning-line"></i> AI Assistant is busy or timed out. Please try again in a moment. (Error: ${error.message})
+                    </div>
                 </div>
-            </div>
-        `;
+            `);
+        } finally {
+            chatBox.scrollTop = chatBox.scrollHeight;
         }
+    },
 
-        chatBox.scrollTop = chatBox.scrollHeight;
+    getChatContext() {
+        const resumes = this.state.data.resumes || [];
+        if (!resumes.length) return "";
+        const latest = resumes[0];
+        return `[CONTEXT] Resume: ${latest.filename}, Target Job: ${latest.job_title}, Match Score: ${latest.match_score}%. Matched Skills: ${latest.matched_skills.join(", ")}, Missing Skills: ${latest.missing_skills.join(", ")}. Analysis: ${latest.analysis_summary}`;
+    },
+
+    formatChatResponse(text) {
+        if (!text) return "";
+        return text
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/\*(.*?)\*/g, '<em>$1</em>')
+            .replace(/\n/g, '<br>')
+            .replace(/- (.*?)(<br>|$)/g, '<li style="margin-left: 1.5rem; list-style-type: disc;">$1</li>');
     },
     renderStudentChart() {
         const resumes = App.state.data.resumes || [];
@@ -1418,12 +1509,21 @@ const Views = {
             </p>
             
             <div style="display: flex; gap: 1.5rem; flex-wrap: wrap; justify-content: center;">
-                <button class="btn btn-primary" style="padding: 1rem 2rem; font-size: 1.1rem; border-radius: 12px;" onclick="App.navigate('auth/recruiter')">
-                    <i class="ri-building-line"></i> Recruiter Portal
-                </button>
-                <button class="btn btn-outline" style="padding: 1rem 2rem; font-size: 1.1rem; border-radius: 12px;" onclick="App.navigate('auth/student')">
-                    <i class="ri-graduation-cap-line"></i> Student Portal
-                </button>
+                ${App.state.user ? `
+                    <button class="btn btn-primary" style="padding: 1rem 2.5rem; font-size: 1.1rem; border-radius: 12px;" onclick="App.navigate('dashboard-${App.state.user.role}')">
+                        <i class="ri-dashboard-line"></i> Go to Dashboard
+                    </button>
+                    <button class="btn btn-outline" style="padding: 1rem 2.5rem; font-size: 1.1rem; border-radius: 12px;" onclick="App.logout()">
+                        <i class="ri-logout-box-r-line"></i> Sign Out
+                    </button>
+                ` : `
+                    <button class="btn" style="padding: 1rem 2rem; font-size: 1.1rem; border-radius: 12px; background: linear-gradient(135deg, #a855f7, #ec4899); color: white; border: none;" onclick="App.navigate('auth/recruiter')">
+                        <i class="ri-building-line"></i> Recruiter Portal
+                    </button>
+                    <button class="btn" style="padding: 1rem 2rem; font-size: 1.1rem; border-radius: 12px; background: linear-gradient(135deg, #6366f1, #a855f7); color: white; border: none;" onclick="App.navigate('auth/student')">
+                        <i class="ri-graduation-cap-line"></i> Student Portal
+                    </button>
+                `}
             </div>
         </div>
         
@@ -1547,11 +1647,9 @@ const Views = {
                                     ${isLoading ? '<i class="ri-loader-4-line ri-spin"></i> Creating Account...' : 'Complete Registration'}
                                 </button>
                             </div>
-                        </form>
                     </div>
                 </div>
-            </div>
-        `;
+            `;
     },
 
     recruiterDashboard(subView, jobs = [], myJobs = []) {
@@ -1586,7 +1684,6 @@ const Views = {
                 const selectedJobId = App.state.data.selectedJobId;
                 const candidateSort = App.state.data.candidateSort;
                 const candidateMinScore = App.state.data.candidateMinScore;
-                const candidateSearch = App.state.data.candidateSearch;
                 const filteredCandidates = App.getFilteredCandidates();
 
                 content = `
@@ -1619,44 +1716,17 @@ const Views = {
 
                             <div class="form-group">
                                 <label class="form-label">Min Score: <span id="min-score-val">${candidateMinScore}%</span></label>
-                                <input
-                                    type="range"
-                                    min="0"
-                                    max="100"
-                                    value="${candidateMinScore}"
-                                    class="form-control"
-                                    oninput="document.getElementById('min-score-val').innerText = this.value + '%'"
-                                    id="filter-min-score"
-                                    ${isLoading ? 'disabled' : ''}
-                                />
+                                <input type="range" min="0" max="100" value="${candidateMinScore}" class="form-control" oninput="document.getElementById('min-score-val').innerText = this.value + '%'" id="filter-min-score" ${isLoading ? 'disabled' : ''} />
                             </div>
 
                             <div class="form-group">
                                 <label class="form-label">Search Email (Optional)</label>
-                                <input
-                                    type="text"
-                                    id="filter-search-email"
-                                    class="form-control"
-                                    placeholder="Enter partial email"
-                                    ${isLoading ? 'disabled' : ''}
-                                />
-                            </div>
-
-                            <div class="form-group">
-                                <label class="form-label">Target Hires</label>
-                                <input
-                                    type="number"
-                                    id="filter-target-hires"
-                                    class="form-control"
-                                    placeholder="e.g. 5"
-                                    value="5"
-                                    ${isLoading ? 'disabled' : ''}
-                                />
+                                <input type="text" id="filter-search-email" class="form-control" placeholder="Enter partial email" ${isLoading ? 'disabled' : ''} />
                             </div>
 
                             <div class="form-group" style="display: flex; align-items: flex-end;">
                                 <button class="btn btn-primary" style="width: 100%;" onclick="App.applyRecruiterFilters()">
-                                    <i class="ri-search-line"></i> Start Searching
+                                    <i class="ri-search-line"></i> Search
                                 </button>
                             </div>
                         </div>
@@ -1664,33 +1734,24 @@ const Views = {
 
                     <div class="glass-panel" style="padding: 1.5rem;">
                         ${!myJobs.length ? `
-                            <div style="text-align:center; color: var(--text-secondary); padding: 2rem;">
-                                No jobs posted yet.
-                            </div>
+                            <div style="text-align:center; color: var(--text-secondary); padding: 2rem;">No jobs posted yet.</div>
                         ` : !jobResults ? `
-                            <div style="text-align:center; color: var(--text-secondary); padding: 2rem;">
-                                Select a job to view candidate results.
-                            </div>
+                            <div style="text-align:center; color: var(--text-secondary); padding: 2rem;">Select a job to view candidates.</div>
                         ` : `
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
                                 <div>
                                     <h3 style="margin-bottom: 0.25rem;">${jobResults.job_title}</h3>
-                                    <p style="color: var(--text-secondary);">
-                                        ${jobResults.company} • Total: ${jobResults.total_candidates} • Filtered: ${filteredCandidates.length}
-                                    </p>
+                                    <p style="color: var(--text-secondary);">${jobResults.company} • Candidates: ${filteredCandidates.length}</p>
                                 </div>
-                                
-                                <div style="display: flex; gap: 0.75rem;">
-                                    <button class="btn btn-primary" onclick="App.handleSendBulkEmail()" ${!filteredCandidates.length ? 'disabled' : ''}>
-                                        <i class="ri-mail-send-line"></i> Send Request to All
-                                    </button>
-                                </div>
+                                <button class="btn btn-primary" onclick="App.handleSendBulkEmail()" ${!filteredCandidates.length ? 'disabled' : ''}>
+                                    <i class="ri-mail-send-line"></i> Send Request to All
+                                </button>
                             </div>
 
                             <table class="data-table">
                                 <thead>
                                     <tr>
-                                        <th>Candidate Email</th>
+                                        <th>Candidate</th>
                                         <th>Resume</th>
                                         <th>Match Score</th>
                                         <th>Matched Skills</th>
@@ -1707,9 +1768,7 @@ const Views = {
                                             <td>${candidate.filename}</td>
                                             <td>
                                                 <div style="min-width: 130px;">
-                                                    <div style="margin-bottom: 0.35rem;">
-                                                        <span class="badge badge-primary">${candidate.match_score}%</span>
-                                                    </div>
+                                                    <div style="margin-bottom: 0.35rem;"><span class="badge badge-primary">${candidate.match_score}%</span></div>
                                                     <div style="height: 8px; background: rgba(255,255,255,0.08); border-radius: 999px; overflow: hidden;">
                                                         <div style="height: 100%; width: ${candidate.match_score}%; background: var(--accent-primary); border-radius: 999px;"></div>
                                                     </div>
@@ -1719,11 +1778,7 @@ const Views = {
                                             <td>${(candidate.missing_skills || []).join(', ') || '-'}</td>
                                         </tr>
                                     `).join('') : `
-                                        <tr>
-                                            <td colspan="5" style="text-align:center; color: var(--text-secondary);">
-                                                No candidates match the current filters.
-                                            </td>
-                                        </tr>
+                                        <tr><td colspan="5" style="text-align:center; color: var(--text-secondary);">No matches found.</td></tr>
                                     `}
                                 </tbody>
                             </table>
@@ -1743,28 +1798,17 @@ const Views = {
                     <div class="glass-panel" style="padding: 2rem; margin-bottom: 2rem;">
                         <h3 style="margin-bottom: 1rem;">Create New Job</h3>
                         <form onsubmit="App.handleCreateJob(event)">
-                            <div class="form-group">
-                                <label class="form-label">Job Title</label>
-                                <input id="job-title" type="text" class="form-control" placeholder="Python Backend Developer" required ${isLoading ? 'disabled' : ''}>
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Company</label>
-                                <input id="job-company" type="text" class="form-control" placeholder="TechNova" required ${isLoading ? 'disabled' : ''}>
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Job Description</label>
-                                <textarea id="job-description" class="form-control" rows="5" placeholder="We need a backend developer with Python, FastAPI, MongoDB, SQL, Docker and Git." required ${isLoading ? 'disabled' : ''}></textarea>
-                            </div>
-                            <button type="submit" class="btn btn-primary" ${isLoading ? 'disabled' : ''}>
-                                <i class="ri-add-line"></i> ${isLoading ? 'Creating...' : 'Create Job'}
-                            </button>
+                            <div class="form-group"><label class="form-label">Job Title</label><input id="job-title" type="text" class="form-control" placeholder="Python Developer" required></div>
+                            <div class="form-group"><label class="form-label">Company</label><input id="job-company" type="text" class="form-control" placeholder="TechCorp" required></div>
+                            <div class="form-group"><label class="form-label">Job Description</label><textarea id="job-description" class="form-control" rows="5" placeholder="Job details..." required></textarea></div>
+                            <button type="submit" class="btn btn-primary"><i class="ri-add-line"></i> Create Job</button>
                         </form>
                     </div>
 
                     <div class="glass-panel" style="padding: 1.5rem;">
                         <h3 style="margin-bottom: 1rem;">My Posted Jobs</h3>
                         <table class="data-table">
-                            <thead><tr><th>Job Title</th><th>Company</th><th>Required Skills</th><th>Actions</th></tr></thead>
+                            <thead><tr><th>Job Title</th><th>Company</th><th>Skills</th><th>Actions</th></tr></thead>
                             <tbody>
                                 ${myJobs.length ? myJobs.map(j => `
                                     <tr>
@@ -1777,37 +1821,63 @@ const Views = {
                                             </button>
                                         </td>
                                     </tr>
-                                `).join('') : `
-                                    <tr>
-                                        <td colspan="3" style="text-align:center; color: var(--text-secondary);">No jobs posted yet.</td>
-                                    </tr>
-                                `}
+                                `).join('') : `<tr><td colspan="4" style="text-align:center; color: var(--text-secondary);">No jobs found.</td></tr>`}
                             </tbody>
                         </table>
                     </div>
                 `;
                 break;
-            case 'overview':
-                content = App.renderRecruiterOverview(jobs, myJobs);
+
+            case 'profile': {
+                const profile = App.getProfile();
+                content = `
+                    <div class="dashboard-header" style="margin-bottom: 2rem;">
+                        <h2 style="font-size: 2rem;">Recruiter Profile</h2>
+                        <p style="color: var(--text-secondary);">Manage your company details and personal information.</p>
+                    </div>
+
+                    <div class="glass-panel" style="padding: 2.5rem; margin-bottom: 2rem;">
+                        <div style="display: flex; align-items: center; gap: 2rem; flex-wrap: wrap;">
+                            <div style="width: 110px; height: 110px; border-radius: 50%; background: var(--gradient-brand); display: flex; align-items: center; justify-content: center; overflow: hidden; font-size: 2.5rem; font-weight: 700;">
+                                ${profile.photo ? `<img src="${profile.photo}" style="width: 100%; height: 100%; object-fit: cover;">` : (profile.name || "R").charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                                <h3 style="font-size: 1.8rem; margin-bottom: 0.5rem;">${profile.name || "Recruiter"}</h3>
+                                <p style="color: var(--text-secondary); margin-bottom: 0.35rem;">${profile.email}</p>
+                                <p style="color: var(--text-secondary);">${profile.education || "Company info not added"}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="glass-panel" style="padding: 2.5rem;">
+                        <h3 style="margin-bottom: 1.5rem;">Edit Profile</h3>
+                        <form onsubmit="App.saveProfile(event)">
+                            <div class="form-group"><label class="form-label">Full Name</label><input id="profile-name" class="form-control" type="text" value="${profile.name || ''}"></div>
+                            <div class="form-group"><label class="form-label">Email</label><input class="form-control" type="email" value="${profile.email}" disabled></div>
+                            <div class="form-group"><label class="form-label">LinkedIn/Website</label><input id="profile-linkedin" class="form-control" type="url" value="${profile.linkedin || ''}"></div>
+                            <input id="profile-github" type="hidden" value="${profile.github || ''}">
+                            <div class="form-group"><label class="form-label">Company/Organization</label><input id="profile-education" class="form-control" type="text" value="${profile.education || ''}"></div>
+                            <div class="form-group"><label class="form-label">Profile Photo</label><input type="file" class="form-control" accept="image/*" onchange="App.handleProfilePhotoUpload(event)"></div>
+                            <button type="submit" class="btn btn-primary"><i class="ri-save-line"></i> Save Changes</button>
+                        </form>
+                    </div>
+                `;
                 break;
+            }
         }
 
         return `
             <div class="dashboard-layout">
                 <aside class="sidebar glass-panel">
-                    <div style="margin-bottom: 2rem;">
-                        <h3 style="font-size: 0.9rem; text-transform: uppercase; color: var(--text-muted); letter-spacing: 1px;">Recruitment Tool</h3>
-                    </div>
+                    <div style="margin-bottom: 2rem;"><h3 style="font-size: 0.9rem; text-transform: uppercase; color: var(--text-muted); letter-spacing: 1px;">Recruitment Tool</h3></div>
                     <ul class="sidebar-menu">
+                        <li class="${subView === 'profile' ? 'active' : ''}"><a href="#dashboard-recruiter/profile"><i class="ri-user-settings-line"></i> My Profile</a></li>
                         <li class="${subView === 'overview' ? 'active' : ''}"><a href="#dashboard-recruiter/overview"><i class="ri-dashboard-line"></i> Overview</a></li>
                         <li class="${subView === 'jobs' ? 'active' : ''}"><a href="#dashboard-recruiter/jobs"><i class="ri-briefcase-line"></i> Job Postings</a></li>
                         <li class="${subView === 'candidates' ? 'active' : ''}"><a href="#dashboard-recruiter/candidates"><i class="ri-group-line"></i> Ranked Candidates</a></li>
                     </ul>
                 </aside>
-                
-                <div class="dashboard-content" style="animation: fadeIn var(--transition-fast);">
-                    ${content}
-                </div>
+                <div class="dashboard-content">${content}</div>
             </div>
         `;
     },

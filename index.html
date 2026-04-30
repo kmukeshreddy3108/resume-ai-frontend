@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Resume Analyser</title>
+    <!-- UI Version: 1.1.2 - Portal Color Update -->
 
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
@@ -20,15 +21,15 @@
             <div class="nav-brand" onclick="App.navigate('landing')">
                 <i class="ri-brain-line"></i>
                 <span>AI Resume <span class="text-gradient">Analyser</span></span>
+                <span style="font-size: 10px; padding: 2px 6px; background: rgba(255,255,255,0.1); border-radius: 4px; margin-left: 8px; vertical-align: middle;">v1.1.3</span>
             </div>
 
             <div class="nav-menu" id="nav-menu">
-                <button class="btn btn-ghost" onclick="App.navigate('auth/recruiter')">
-                    For Recruiters
+                <button class="btn btn-sm" style="background: linear-gradient(135deg, #a855f7, #ec4899); color: white; border: none;" onclick="App.navigate('auth/recruiter')">
+                    <i class="ri-building-line"></i> Recruiter Portal
                 </button>
-
-                <button class="btn btn-primary" onclick="App.navigate('auth/student')">
-                    Student Portal
+                <button class="btn btn-sm" style="background: linear-gradient(135deg, #6366f1, #a855f7); color: white; border: none;" onclick="App.navigate('auth/student')">
+                    <i class="ri-graduation-cap-line"></i> Student Portal
                 </button>
             </div>
 

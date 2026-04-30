@@ -268,6 +268,28 @@ h6 {
     border-color: var(--accent-primary);
 }
 
+.btn-recruiter {
+    background: linear-gradient(135deg, #a855f7, #ec4899);
+    color: white;
+    box-shadow: 0 4px 15px -3px rgba(168, 85, 247, 0.4);
+}
+
+.btn-recruiter:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px -4px rgba(168, 85, 247, 0.6);
+}
+
+.btn-student {
+    background: linear-gradient(135deg, #6366f1, #a855f7);
+    color: white;
+    box-shadow: 0 4px 15px -3px rgba(99, 102, 241, 0.4);
+}
+
+.btn-student:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px -4px rgba(99, 102, 241, 0.6);
+}
+
 /* Main Content */
 #app-root {
     padding-top: 100px;
