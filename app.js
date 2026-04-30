@@ -331,7 +331,7 @@ const App = {
         if (!navMenu) return;
 
         if (this.state.isInitializing) {
-            navMenu.innerHTML = `<div style="color: var(--text-muted); font-size: 0.8rem;"><i class="ri-loader-4-line ri-spin"></i> Checking session... <span style="opacity: 0.5;">v1.2.1</span></div>`;
+            navMenu.innerHTML = `<div style="color: var(--text-muted); font-size: 0.8rem;"><i class="ri-loader-4-line ri-spin"></i> Checking session...</div>`;
             return;
         }
 
@@ -351,7 +351,7 @@ const App = {
 
             navMenu.innerHTML = `
                 <div style="display: flex; align-items: center; gap: 1.5rem;">
-                    <div style="font-size: 0.7rem; color: var(--text-muted); font-weight: 500; letter-spacing: 0.5px;">v1.2.1</div>
+
                     <a href="#${dashRoute}" class="nav-link" style="font-weight: 600; color: var(--text-primary);">Dashboard</a>
                     <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.25rem 0.75rem; background: var(--bg-glass); border: 1px solid var(--border-glass); border-radius: 99px;">
                         <div style="text-align: right; line-height: 1.1;">
@@ -1575,7 +1575,7 @@ const Views = {
                         <h2 style="font-size: 2rem; margin-bottom: 0.5rem;">
                             <span class="text-gradient">${isRecruiter ? 'Recruiter' : 'Student'}</span> Portal
                         </h2>
-                        <p style="color: var(--text-secondary);">Create account or sign in <span style="font-size: 0.7rem; opacity: 0.5;">(v1.1.0)</span></p>
+                        <p style="color: var(--text-secondary);">Create account or sign in</p>
                     </div>
 
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 2rem;">
