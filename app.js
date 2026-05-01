@@ -23,7 +23,8 @@ const App = {
             isLoading: false,
             candidateSort: "high_to_low",
             candidateMinScore: 0,
-            candidateSearch: ""
+            candidateSearch: "",
+            targetHires: 0
         }
     },
 
@@ -251,9 +252,9 @@ const App = {
         this.render("dashboard-recruiter", { subView: "candidates" });
     },
 
-    handleCandidateSearchChange(value) {
-        this.state.data.candidateSearch = value || "";
-        this.render("dashboard-recruiter", { subView: "candidates" });
+    handleTargetHiresChange(value) {
+        this.state.data.targetHires = parseInt(value) || 0;
+        this.render("dashboard-recruiter", { subView: "candidates" }); // ✅ ADD THIS
     },
 
     getFilteredCandidates() {
@@ -280,9 +281,7 @@ const App = {
             return (b.match_score || 0) - (a.match_score || 0);
         });
 
-        // Apply Target Hires (Limit)
-        const targetHiresInput = document.getElementById("filter-target-hires");
-        const targetHires = targetHiresInput ? parseInt(targetHiresInput.value) : NaN;
+        const targetHires = this.state.data.targetHires;
 
         if (!isNaN(targetHires) && targetHires > 0) {
             filteredCandidates = filteredCandidates.slice(0, targetHires);
@@ -1738,12 +1737,12 @@ const Views = {
                             <div class="form-group">
     <label class="form-label">Number of Candidates</label>
     <input 
-        type="number" 
-        id="filter-target-hires" 
-        class="form-control" 
-        min="1" 
-        placeholder="Example: 5"
-        ${isLoading ? 'disabled' : ''}
+        type="number"
+        id="filter-target-hires"
+        class="form-control"
+        min="1"
+        value="${App.state.data.targetHires || ''}"
+        oninput="App.handleTargetHiresChange(this.value)"
     />
 </div>
 
