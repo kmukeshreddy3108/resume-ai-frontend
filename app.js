@@ -3,9 +3,9 @@
  * Handles Routing, State Management, and View Rendering
  */
 const API_BASE = (
-    window.location.hostname === "localhost" || 
-    window.location.hostname === "127.0.0.1" || 
-    window.location.protocol === "file:" || 
+    window.location.hostname === "localhost" ||
+    window.location.hostname === "127.0.0.1" ||
+    window.location.protocol === "file:" ||
     !window.location.hostname
 ) ? "http://localhost:8000" : "https://resume-ai-backend-fgy7.onrender.com";
 
@@ -102,9 +102,9 @@ const App = {
     getErrorMessage(error, fallback = "Something went wrong") {
         console.error("DEBUG: Detailed Error Object:", error);
         if (!error) return fallback;
-        
+
         let msg = typeof error === "string" ? error : (error.message || fallback);
-        
+
         if (error.response && error.response.data) {
             msg = error.response.data.detail || msg;
         }
@@ -113,9 +113,9 @@ const App = {
             try {
                 const parsed = JSON.parse(msg);
                 msg = parsed.detail || parsed.message || parsed.error?.message || msg;
-            } catch (e) {}
+            } catch (e) { }
         }
-        
+
         return typeof msg === "string" ? msg : JSON.stringify(msg);
     },
 
@@ -283,7 +283,7 @@ const App = {
         // Apply Target Hires (Limit)
         const targetHiresInput = document.getElementById("filter-target-hires");
         const targetHires = targetHiresInput ? parseInt(targetHiresInput.value) : NaN;
-        
+
         if (!isNaN(targetHires) && targetHires > 0) {
             filteredCandidates = filteredCandidates.slice(0, targetHires);
         }
@@ -311,7 +311,7 @@ const App = {
 
             if (fetches.length) {
                 await Promise.all(fetches);
-                
+
                 // Secondary fetch for candidates if needed
                 if (view === 'dashboard-recruiter' && subView === "candidates" && this.state.data.myJobs.length) {
                     const currentSelected = this.state.data.selectedJobId;
@@ -394,7 +394,7 @@ const App = {
 
         localStorage.removeItem("resumeai_user");
         localStorage.removeItem("resumeai_token");
-        
+
         if (!silent) {
             this.navigate('landing');
             this.showToast('Logged out successfully', 'success');
@@ -508,7 +508,7 @@ const App = {
             const signupData = await this.parseResponse(response, "Signup failed");
             console.log(`DEBUG: [signup] Response Data:`, signupData);
             this.showToast("Account created successfully!", "success");
-            
+
             // Auto-login after signup
             this.setLoading(true);
             const loginResponse = await fetch(`${API_BASE}/login`, {
@@ -519,7 +519,7 @@ const App = {
 
             const loginData = await this.parseResponse(loginResponse, "Auto-login failed");
             const payload = loginData.data || loginData;
-            
+
             const user = {
                 email: payload.email,
                 role: payload.role || role,
@@ -566,7 +566,7 @@ const App = {
             console.log(`DEBUG: [send-otp] Response Status:`, response.status);
             const data = await response.json();
             console.log(`DEBUG: [send-otp] Response Data:`, data);
-            
+
             if (!response.ok) {
                 console.error("DEBUG: OTP Request failed:", data);
                 throw new Error(data.detail || "OTP failed");
@@ -581,7 +581,7 @@ const App = {
         } catch (error) {
             console.error("DEBUG: Caught error in sendOtpForSignup:", error);
             this.showToast(this.getErrorMessage(error, "Failed to send code"), "error");
-            
+
             // Reset UI state on error
             document.getElementById('signup-step-1').style.opacity = '1';
             document.getElementById('signup-step-1').style.pointerEvents = 'all';
@@ -615,9 +615,9 @@ const App = {
             console.log(`DEBUG: [verify-otp] Response Status:`, response.status);
             const data = await this.parseResponse(response, "Invalid verification code");
             console.log(`DEBUG: [verify-otp] Response Data:`, data);
-            
+
             this.showToast("Email verified successfully!", "success");
-            
+
             // Transition to Step 3
             document.getElementById('signup-step-2').style.opacity = '0.5';
             document.getElementById('signup-step-2').style.pointerEvents = 'none';
@@ -626,12 +626,12 @@ const App = {
 
         } catch (err) {
             this.showToast(this.getErrorMessage(err, "Verification failed"), "error");
-            
+
             // Reset UI state on error
             document.getElementById('signup-step-2').style.opacity = '1';
             document.getElementById('signup-step-2').style.pointerEvents = 'all';
             document.getElementById('signup-step-3').style.display = 'none';
-            
+
             btn.disabled = false;
             btn.innerHTML = 'Verify & Continue';
         }
@@ -639,7 +639,7 @@ const App = {
 
     async handleDeleteResume(jobId) {
         if (!confirm("Are you sure you want to delete this application?")) return;
-        
+
         try {
             const token = this.getToken();
             const response = await fetch(`${API_BASE}/resumes/${jobId}`, {
@@ -657,7 +657,7 @@ const App = {
 
     async handleDeleteJob(jobId) {
         if (!confirm("Are you sure you want to delete this job and all its applications?")) return;
-        
+
         try {
             const token = this.getToken();
             const response = await fetch(`${API_BASE}/jobs/${jobId}`, {
@@ -676,16 +676,25 @@ const App = {
 
     async handleSendBulkEmail() {
         const filtered = this.getFilteredCandidates();
-        if (!filtered.length) return;
-        
-        const message = prompt("Enter the message to send to all selected candidates:", "We reviewed your resume for the position and would like to proceed with an interview. Please let us know your availability.");
+
+        if (!filtered.length) {
+            this.showToast("No candidates selected", "warning");
+            return;
+        }
+
+        const message = prompt(
+            "Enter message to send:",
+            "We reviewed your resume and would like to proceed with the next step. Please share your availability."
+        );
+
         if (!message) return;
-        
+
         try {
             this.setLoading(true);
+
             const token = this.getToken();
             const emails = filtered.map(c => c.email);
-            
+
             const response = await fetch(`${API_BASE}/notify-candidates`, {
                 method: "POST",
                 headers: {
@@ -698,24 +707,26 @@ const App = {
                     candidate_emails: emails
                 })
             });
-            
-            const data = await this.parseResponse(response, "Failed to send notifications");
-            this.showToast(data.message, "success");
+
+            const data = await this.parseResponse(response, "Failed to send request");
+
+            this.showToast(data.message || "Request sent successfully!", "success");
+
         } catch (error) {
-            this.showToast(this.getErrorMessage(error), "error");
+            this.showToast(this.getErrorMessage(error, "Request sending failed"), "error");
         } finally {
             this.setLoading(false);
             this.render("dashboard-recruiter", { subView: "candidates" });
         }
-    },
+    }
 
     applyRecruiterFilters() {
         const minScore = document.getElementById("filter-min-score")?.value || 0;
         const searchEmail = document.getElementById("filter-search-email")?.value || "";
-        
+
         this.state.data.candidateMinScore = parseInt(minScore);
         this.state.data.candidateSearch = searchEmail.trim();
-        
+
         this.render("dashboard-recruiter", { subView: "candidates" });
     },
 
@@ -738,7 +749,7 @@ const App = {
         const { skill, question } = session;
         const answerInput = document.getElementById("interview-answer");
         const answer = answerInput?.value.trim();
-        
+
         console.log("DEBUG: Evaluating answer for skill:", skill, "Question:", question);
 
         if (!answer || answer.length < 5) {
@@ -756,7 +767,7 @@ const App = {
 
             // Save answer immediately so it's preserved during the loading render
             this.state.interview.answer = answer;
-            
+
             this.setLoading(true);
             this.render("dashboard-student", { subView: "interview" });
 
@@ -776,9 +787,9 @@ const App = {
 
             const evaluation = await response.json();
             console.log("DEBUG: Evaluation Result:", evaluation);
-            
+
             this.state.interview.evaluation = evaluation;
-            
+
             this.showToast("Answer evaluated!", "success");
         } catch (error) {
             console.error("DEBUG: Evaluation Error:", error);
@@ -906,7 +917,7 @@ const App = {
     },
     getSkillRoadmap(skill) {
         const cleanSkill = (skill || "this skill").toLowerCase();
-        
+
         const roadmaps = {
             "python": {
                 why: "Python is the core language for AI, Backend, and Data Science. Companies like Google, Meta, and Netflix rely on it.",
@@ -1076,9 +1087,9 @@ const App = {
         localStorage.setItem("resumeai_user", JSON.stringify(this.state.user));
 
         this.showToast("Profile updated successfully!", "success");
-        
+
         const dashRoute = this.state.user.role === 'recruiter' ? 'dashboard-recruiter' : 'dashboard-student';
-        
+
         setTimeout(() => {
             this.render(dashRoute, { subView: "profile" });
         }, 100);
@@ -1135,7 +1146,7 @@ const App = {
                 </div>
             </div>
         `);
-        
+
         input.value = "";
         chatBox.scrollTop = chatBox.scrollHeight;
 
@@ -1152,7 +1163,7 @@ const App = {
 
         try {
             const context = this.getChatContext();
-            
+
             const response = await fetch(`${API_BASE}/chat`, {
                 method: "POST",
                 headers: {
@@ -1181,7 +1192,7 @@ const App = {
         } catch (error) {
             const loadingEl = document.getElementById(loadingId);
             if (loadingEl) loadingEl.remove();
-            
+
             chatBox.insertAdjacentHTML('beforeend', `
                 <div style="margin-bottom: 1.5rem; text-align: left;">
                     <div style="display: inline-block; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); padding: 0.75rem 1rem; border-radius: 12px; font-size: 0.9rem; color: var(--danger);">
@@ -1723,6 +1734,18 @@ const Views = {
                                 <label class="form-label">Search Email (Optional)</label>
                                 <input type="text" id="filter-search-email" class="form-control" placeholder="Enter partial email" ${isLoading ? 'disabled' : ''} />
                             </div>
+
+                            <div class="form-group">
+    <label class="form-label">Number of Candidates</label>
+    <input 
+        type="number" 
+        id="filter-target-hires" 
+        class="form-control" 
+        min="1" 
+        placeholder="Example: 5"
+        ${isLoading ? 'disabled' : ''}
+    />
+</div>
 
                             <div class="form-group" style="display: flex; align-items: flex-end;">
                                 <button class="btn btn-primary" style="width: 100%;" onclick="App.applyRecruiterFilters()">
