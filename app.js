@@ -254,9 +254,7 @@ const App = {
 
     handleTargetHiresChange(value) {
         this.state.data.targetHires = parseInt(value) || 0;
-        this.render("dashboard-recruiter", { subView: "candidates" }); // ✅ ADD THIS
     },
-
     getFilteredCandidates() {
         const results = this.state.data.jobResults;
         if (!results?.candidates) return [];
@@ -692,24 +690,25 @@ const App = {
             this.setLoading(true);
 
             const token = this.getToken();
-            const emails = filtered.map(c => c.email);
 
-            const response = await fetch(`${API_BASE}/notify-candidates`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    job_id: this.state.data.selectedJobId,
-                    message: message,
-                    candidate_emails: emails
-                })
-            });
+            for (const candidate of filtered) {
+                const response = await fetch(`${API_BASE}/notify-candidates`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        job_id: this.state.data.selectedJobId,
+                        message: message,
+                        candidate_emails: [candidate.email]
+                    })
+                });
 
-            const data = await this.parseResponse(response, "Failed to send request");
+                await this.parseResponse(response, `Failed to send request to ${candidate.email}`);
+            }
 
-            this.showToast(data.message || "Request sent successfully!", "success");
+            this.showToast(`Request sent to ${filtered.length} candidate(s)!`, "success");
 
         } catch (error) {
             this.showToast(this.getErrorMessage(error, "Request sending failed"), "error");
@@ -717,14 +716,16 @@ const App = {
             this.setLoading(false);
             this.render("dashboard-recruiter", { subView: "candidates" });
         }
-    }
+    },
 
     applyRecruiterFilters() {
         const minScore = document.getElementById("filter-min-score")?.value || 0;
         const searchEmail = document.getElementById("filter-search-email")?.value || "";
+        const targetHires = document.getElementById("filter-target-hires")?.value || 0;
 
-        this.state.data.candidateMinScore = parseInt(minScore);
+        this.state.data.candidateMinScore = parseInt(minScore) || 0;
         this.state.data.candidateSearch = searchEmail.trim();
+        this.state.data.targetHires = parseInt(targetHires) || 0;
 
         this.render("dashboard-recruiter", { subView: "candidates" });
     },
@@ -1734,15 +1735,17 @@ const Views = {
                                 <input type="text" id="filter-search-email" class="form-control" placeholder="Enter partial email" ${isLoading ? 'disabled' : ''} />
                             </div>
 
-                            <div class="form-group">
+                           <div class="form-group">
     <label class="form-label">Number of Candidates</label>
     <input 
         type="number"
         id="filter-target-hires"
         class="form-control"
         min="1"
+        placeholder="Example: 2"
         value="${App.state.data.targetHires || ''}"
         oninput="App.handleTargetHiresChange(this.value)"
+        ${isLoading ? 'disabled' : ''}
     />
 </div>
 
