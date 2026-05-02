@@ -690,26 +690,23 @@ const App = {
             this.setLoading(true);
 
             const token = this.getToken();
+            const candidateEmails = filtered.map(c => c.email);
 
-            for (const candidate of filtered) {
-                const response = await fetch(`${API_BASE}/notify-candidates`, {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "Authorization": `Bearer ${token}`
-                    },
-                    body: JSON.stringify({
-                        job_id: this.state.data.selectedJobId,
-                        message: message,
-                        candidate_emails: [candidate.email]
-                    })
-                });
+            const response = await fetch(`${API_BASE}/notify-candidates`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    job_id: this.state.data.selectedJobId,
+                    message: message,
+                    candidate_emails: candidateEmails
+                })
+            });
 
-                await this.parseResponse(response, `Failed to send request to ${candidate.email}`);
-            }
-
-            this.showToast(`Request sent to ${filtered.length} candidate(s)!`, "success");
-
+            const data = await this.parseResponse(response, `Failed to send request to candidates`);
+            this.showToast(data.message || `Request sent to ${filtered.length} candidate(s)!`, "success");
         } catch (error) {
             this.showToast(this.getErrorMessage(error, "Request sending failed"), "error");
         } finally {
