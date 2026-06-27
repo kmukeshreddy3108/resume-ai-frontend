@@ -412,7 +412,6 @@ const App = {
         try {
             this.setLoading(true);
             this.render("auth", { subView: role });
-            // Removed Authenticating toast for cleaner UI
 
             const response = await fetch(`${API_BASE}/login`, {
                 method: "POST",
@@ -422,13 +421,33 @@ const App = {
                 body: JSON.stringify({ email, password })
             });
 
-            const data = await this.parseResponse(response, "Login failed");
+            // Handle specific error cases with clear popups
+            if (!response.ok) {
+                let errData = null;
+                try { errData = await response.json(); } catch (e) {}
+
+                if (response.status === 404) {
+                    this.showModal("Email Not Found", "This email does not exist. Please check your email or register a new account.", "error");
+                } else if (response.status === 401) {
+                    this.showModal("Incorrect Password", "The password you entered is incorrect. Please try again.", "error");
+                } else {
+                    const msg = errData?.detail || "Login failed. Please try again.";
+                    this.showToast(msg, "error");
+                }
+                this.setLoading(false);
+                this.render("auth", { subView: role });
+                return;
+            }
+
+            const data = await response.json();
             const payload = data.data || data;
             if (payload.role !== role) {
                 this.showToast(
                     `This account is registered as ${payload.role}. Please login from the correct portal.`,
                     "error"
                 );
+                this.setLoading(false);
+                this.render("auth", { subView: role });
                 return;
             }
 
@@ -673,10 +692,21 @@ const App = {
             const data = await response.json();
 
             if (!response.ok) {
-                throw new Error(data.detail || "Failed to send OTP");
+                // Specific popup for email not found
+                if (response.status === 404) {
+                    this.showModal("Email Not Found", "This email does not exist in our system. Please check your email or register a new account.", "error");
+                } else if (response.status === 400 && data.detail && data.detail.includes(role)) {
+                    this.showModal("Wrong Portal", `This email is not registered as a ${role}. Please use the correct portal.`, "error");
+                } else {
+                    this.showToast(data.detail || "Failed to send OTP", "error");
+                }
+                document.getElementById('fp-step-1').style.opacity = '1';
+                document.getElementById('fp-step-1').style.pointerEvents = 'all';
+                document.getElementById('fp-step-2').style.display = 'none';
+                return;
             }
 
-            this.showToast("Verification code sent!", "success");
+            this.showToast("Verification code sent to your email!", "success");
             document.getElementById('fp-step-1').style.opacity = '0.5';
             document.getElementById('fp-step-1').style.pointerEvents = 'none';
             document.getElementById('fp-step-2').style.display = 'block';
@@ -1613,6 +1643,83 @@ const App = {
             toast.style.opacity = '0';
             setTimeout(() => toast.remove(), 300);
         }, 3000);
+    },
+
+    showModal(title, message, type = 'info') {
+        // Remove existing modal if any
+        const existing = document.getElementById('app-modal-overlay');
+        if (existing) existing.remove();
+
+        let icon = 'ri-information-line';
+        let color = 'var(--accent-primary)';
+        let bgColor = 'rgba(99, 102, 241, 0.15)';
+
+        if (type === 'success') { icon = 'ri-checkbox-circle-line'; color = 'var(--success)'; bgColor = 'rgba(34,197,94,0.12)'; }
+        if (type === 'warning') { icon = 'ri-error-warning-line'; color = 'var(--warning)'; bgColor = 'rgba(234,179,8,0.12)'; }
+        if (type === 'error') { icon = 'ri-close-circle-line'; color = 'var(--danger)'; bgColor = 'rgba(239,68,68,0.12)'; }
+
+        const overlay = document.createElement('div');
+        overlay.id = 'app-modal-overlay';
+        overlay.style.cssText = `
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.65);
+            backdrop-filter: blur(6px);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.2s ease;
+        `;
+
+        overlay.innerHTML = `
+            <div style="
+                background: var(--bg-surface);
+                border: 1px solid var(--border-glass);
+                border-top: 4px solid ${color};
+                border-radius: 16px;
+                padding: 2.5rem;
+                max-width: 420px;
+                width: 90%;
+                box-shadow: 0 25px 60px rgba(0,0,0,0.4);
+                text-align: center;
+                animation: slideDown 0.3s cubic-bezier(0.34,1.56,0.64,1);
+            ">
+                <div style="
+                    width: 70px; height: 70px;
+                    border-radius: 50%;
+                    background: ${bgColor};
+                    display: flex; align-items: center; justify-content: center;
+                    margin: 0 auto 1.5rem;
+                    font-size: 2rem;
+                    color: ${color};
+                ">
+                    <i class="${icon}"></i>
+                </div>
+                <h3 style="font-size: 1.4rem; font-weight: 700; margin-bottom: 0.75rem; color: var(--text-primary);">${title}</h3>
+                <p style="color: var(--text-secondary); font-size: 0.95rem; line-height: 1.6; margin-bottom: 2rem;">${message}</p>
+                <button onclick="document.getElementById('app-modal-overlay').remove()" style="
+                    background: ${color};
+                    color: white;
+                    border: none;
+                    border-radius: 10px;
+                    padding: 0.75rem 2.5rem;
+                    font-size: 1rem;
+                    font-weight: 600;
+                    cursor: pointer;
+                    transition: opacity 0.2s;
+                " onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
+                    OK
+                </button>
+            </div>
+        `;
+
+        // Close on overlay click
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) overlay.remove();
+        });
+
+        document.body.appendChild(overlay);
     }
 };
 
@@ -1783,6 +1890,20 @@ const Views = {
                     </div>
 
                     <div id="forgot-password-box" style="display: none;">
+                        <!-- Back to Login -->
+                        <div style="margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                            <button type="button" onclick="document.getElementById('forgot-password-box').style.display='none'; document.getElementById('signin-box').style.display='block';" style="background: none; border: none; color: var(--accent-primary); cursor: pointer; font-size: 0.9rem; display: flex; align-items: center; gap: 0.4rem; padding: 0; font-weight: 500;">
+                                <i class="ri-arrow-left-line"></i> Back to Login
+                            </button>
+                        </div>
+                        <div style="text-align: center; margin-bottom: 1.5rem;">
+                            <div style="width: 52px; height: 52px; border-radius: 50%; background: rgba(99,102,241,0.12); display: flex; align-items: center; justify-content: center; margin: 0 auto 0.75rem; font-size: 1.5rem; color: var(--accent-primary);">
+                                <i class="ri-lock-password-line"></i>
+                            </div>
+                            <h4 style="margin-bottom: 0.25rem; font-size: 1.1rem;">Reset Password</h4>
+                            <p style="font-size: 0.82rem; color: var(--text-secondary);">Enter your email to receive a verification code</p>
+                        </div>
+
                         <!-- Step 1: Email -->
                         <div id="fp-step-1">
                             <div class="form-group">
