@@ -421,17 +421,36 @@ const App = {
                 body: JSON.stringify({ email, password })
             });
 
-            // Handle specific error cases with clear popups
-            if (!response.ok) {
-                let errData = null;
-                try { errData = await response.json(); } catch (e) {}
+            // Read body first regardless of status
+            let respData = null;
+            try { respData = await response.json(); } catch (e) {}
 
-                if (response.status === 404) {
-                    this.showModal("Email Not Found", "This email does not exist. Please check your email or register a new account.", "error");
-                } else if (response.status === 401) {
-                    this.showModal("Incorrect Password", "The password you entered is incorrect. Please try again.", "error");
+            if (!response.ok) {
+                const detail = respData?.detail || "";
+                const detailLower = detail.toLowerCase();
+
+                if (
+                    (response.status === 404 && detailLower.includes("not found")) ||
+                    (response.status === 404 && detailLower.includes("user"))
+                ) {
+                    // Backend explicitly says user doesn't exist
+                    this.showModal(
+                        "Email Not Found",
+                        "No account found with this email. Please check your email address or create a new account.",
+                        "error"
+                    );
+                } else if (response.status === 401 || detailLower.includes("password") || detailLower.includes("invalid")) {
+                    // Wrong password
+                    this.showModal(
+                        "Incorrect Password",
+                        "The password you entered is incorrect. Please try again or use Forgot Password.",
+                        "error"
+                    );
+                } else if (response.status === 422) {
+                    this.showToast("Please enter a valid email and password (min 6 characters)", "warning");
                 } else {
-                    const msg = errData?.detail || "Login failed. Please try again.";
+                    // Generic fallback — includes Render cold-start 404s and service errors
+                    const msg = detail || `Login failed (status ${response.status}). Please try again.`;
                     this.showToast(msg, "error");
                 }
                 this.setLoading(false);
@@ -439,12 +458,12 @@ const App = {
                 return;
             }
 
-            const data = await response.json();
-            const payload = data.data || data;
+            const payload = respData?.data || respData;
             if (payload.role !== role) {
-                this.showToast(
-                    `This account is registered as ${payload.role}. Please login from the correct portal.`,
-                    "error"
+                this.showModal(
+                    "Wrong Portal",
+                    `This account is registered as a ${payload.role}. Please use the ${payload.role === 'recruiter' ? 'Recruiter' : 'Student'} portal to sign in.`,
+                    "warning"
                 );
                 this.setLoading(false);
                 this.render("auth", { subView: role });
@@ -472,7 +491,7 @@ const App = {
             this.navigate(dashRoute);
 
         } catch (error) {
-            this.showToast(this.getErrorMessage(error, "Login failed"), "error");
+            this.showToast(this.getErrorMessage(error, "Connection failed. Please check your internet and try again."), "error");
             this.setLoading(false);
             this.render("auth", { subView: role });
         }
@@ -689,16 +708,29 @@ const App = {
                 body: JSON.stringify({ email, role })
             });
 
-            const data = await response.json();
+            let data = null;
+            try { data = await response.json(); } catch (e) {}
 
             if (!response.ok) {
-                // Specific popup for email not found
-                if (response.status === 404) {
-                    this.showModal("Email Not Found", "This email does not exist in our system. Please check your email or register a new account.", "error");
-                } else if (response.status === 400 && data.detail && data.detail.includes(role)) {
-                    this.showModal("Wrong Portal", `This email is not registered as a ${role}. Please use the correct portal.`, "error");
+                const detail = data?.detail || "";
+                const detailLower = detail.toLowerCase();
+
+                if (response.status === 404 && (detailLower.includes("not exist") || detailLower.includes("not found"))) {
+                    // Email genuinely doesn't exist
+                    this.showModal(
+                        "Email Not Found",
+                        "No account found with this email. Please make sure you are on the correct portal (Student or Recruiter) and that you have registered.",
+                        "error"
+                    );
+                } else if (response.status === 400) {
+                    // Role mismatch — email exists but under a different portal
+                    this.showModal(
+                        "Wrong Portal",
+                        `This email is registered under a different portal. Please go to the correct portal's Forgot Password.`,
+                        "warning"
+                    );
                 } else {
-                    this.showToast(data.detail || "Failed to send OTP", "error");
+                    this.showToast(detail || "Failed to send code. Please try again.", "error");
                 }
                 document.getElementById('fp-step-1').style.opacity = '1';
                 document.getElementById('fp-step-1').style.pointerEvents = 'all';
@@ -712,7 +744,7 @@ const App = {
             document.getElementById('fp-step-2').style.display = 'block';
 
         } catch (error) {
-            this.showToast(this.getErrorMessage(error, "Failed to send code"), "error");
+            this.showToast(this.getErrorMessage(error, "Failed to send code. Check your connection."), "error");
             document.getElementById('fp-step-1').style.opacity = '1';
             document.getElementById('fp-step-1').style.pointerEvents = 'all';
             document.getElementById('fp-step-2').style.display = 'none';
