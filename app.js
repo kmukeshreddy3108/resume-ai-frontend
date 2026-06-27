@@ -634,6 +634,127 @@ const App = {
         }
     },
 
+    showForgotPassword(role) {
+        document.getElementById('signin-box').style.display = 'none';
+        document.getElementById('signup-box').style.display = 'none';
+        document.getElementById('forgot-password-box').style.display = 'block';
+        document.getElementById('fp-step-1').style.opacity = '1';
+        document.getElementById('fp-step-1').style.pointerEvents = 'all';
+        document.getElementById('fp-step-2').style.display = 'none';
+        document.getElementById('fp-email').value = '';
+        document.getElementById('fp-otp').value = '';
+        document.getElementById('fp-password').value = '';
+        document.getElementById('fp-confirm-password').value = '';
+    },
+
+    async sendOtpForForgotPassword(role) {
+        const email = document.getElementById("fp-email")?.value.trim();
+
+        if (!email) {
+            this.showToast("Please enter your email first", "warning");
+            return;
+        }
+
+        const btn = document.getElementById("fp-send-otp-btn");
+        const originalText = btn.innerHTML;
+
+        try {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="ri-loader-4-line ri-spin"></i> Sending...';
+
+            const response = await fetch(`${API_BASE}/send-forgot-otp`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ email, role })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.detail || "Failed to send OTP");
+            }
+
+            this.showToast("Verification code sent!", "success");
+            document.getElementById('fp-step-1').style.opacity = '0.5';
+            document.getElementById('fp-step-1').style.pointerEvents = 'none';
+            document.getElementById('fp-step-2').style.display = 'block';
+
+        } catch (error) {
+            this.showToast(this.getErrorMessage(error, "Failed to send code"), "error");
+            document.getElementById('fp-step-1').style.opacity = '1';
+            document.getElementById('fp-step-1').style.pointerEvents = 'all';
+            document.getElementById('fp-step-2').style.display = 'none';
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
+    },
+
+    async handleForgotPasswordReset(role) {
+        const email = document.getElementById("fp-email")?.value.trim();
+        const otp = document.getElementById("fp-otp")?.value.trim();
+        const password = document.getElementById("fp-password")?.value.trim();
+        const confirmPassword = document.getElementById("fp-confirm-password")?.value.trim();
+
+        if (!email || !otp || !password || !confirmPassword) {
+            this.showToast("All fields are required", "warning");
+            return;
+        }
+
+        if (password !== confirmPassword) {
+            this.showToast("Passwords do not match", "error");
+            return;
+        }
+
+        const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#])[A-Za-z\d@$!%*?&#]{6,72}$/;
+
+        if (!passwordRegex.test(password)) {
+            this.showToast(
+                "Password must be 6-72 chars, include uppercase, lowercase, number & special character",
+                "error"
+            );
+            return;
+        }
+
+        const btn = document.getElementById("fp-finish-btn");
+        const originalText = btn.innerHTML;
+
+        try {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="ri-loader-4-line ri-spin"></i> Resetting...';
+
+            const response = await fetch(`${API_BASE}/reset-password`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ email, otp, password, role })
+            });
+
+            const data = await this.parseResponse(response, "Password reset failed");
+
+            this.showToast("Password reset successfully! You can now log in.", "success");
+            
+            // Switch back to login view
+            document.getElementById('forgot-password-box').style.display = 'none';
+            document.getElementById('signin-box').style.display = 'block';
+            
+            // Populate email field for easy login
+            const loginEmailInput = document.getElementById("login-email");
+            if (loginEmailInput) {
+                loginEmailInput.value = email;
+            }
+            
+        } catch (error) {
+            this.showToast(this.getErrorMessage(error, "Password reset failed"), "error");
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
+    },
+
     async handleDeleteResume(jobId) {
         if (!confirm("Are you sure you want to delete this application?")) return;
 
@@ -1587,10 +1708,10 @@ const Views = {
                     </div>
 
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 2rem;">
-                        <button class="btn btn-outline" type="button" onclick="document.getElementById('signin-box').style.display='block'; document.getElementById('signup-box').style.display='none';" ${isLoading ? 'disabled' : ''}>
+                        <button class="btn btn-outline" type="button" onclick="document.getElementById('signin-box').style.display='block'; document.getElementById('signup-box').style.display='none'; document.getElementById('forgot-password-box').style.display='none';" ${isLoading ? 'disabled' : ''}>
                             Sign In
                         </button>
-                        <button class="btn btn-outline" type="button" onclick="document.getElementById('signin-box').style.display='none'; document.getElementById('signup-box').style.display='block';" ${isLoading ? 'disabled' : ''}>
+                        <button class="btn btn-outline" type="button" onclick="document.getElementById('signin-box').style.display='none'; document.getElementById('signup-box').style.display='block'; document.getElementById('forgot-password-box').style.display='none';" ${isLoading ? 'disabled' : ''}>
                             Sign Up
                         </button>
                     </div>
@@ -1604,6 +1725,9 @@ const Views = {
                             <div class="form-group">
                                 <label class="form-label">Password</label>
                                 <input id="login-password" type="password" class="form-control" placeholder="••••••••" required ${isLoading ? 'disabled' : ''}>
+                            </div>
+                            <div style="text-align: right; margin-top: -0.5rem; margin-bottom: 1.5rem;">
+                                <a href="javascript:void(0)" onclick="App.showForgotPassword('${role}')" style="color: var(--accent-primary); font-size: 0.85rem; text-decoration: none;">Forgot Password?</a>
                             </div>
 
                             <button type="submit" class="btn btn-primary" style="width: 100%; padding: 0.8rem; font-size: 1.1rem; border-radius: 8px;" ${isLoading ? 'disabled' : ''}>
@@ -1655,8 +1779,47 @@ const Views = {
                                     ${isLoading ? '<i class="ri-loader-4-line ri-spin"></i> Creating Account...' : 'Complete Registration'}
                                 </button>
                             </div>
+                        </form>
+                    </div>
+
+                    <div id="forgot-password-box" style="display: none;">
+                        <!-- Step 1: Email -->
+                        <div id="fp-step-1">
+                            <div class="form-group">
+                                <label class="form-label">Email Address</label>
+                                <input id="fp-email" type="email" class="form-control" placeholder="user@example.com" required>
+                            </div>
+                            <button type="button" class="btn btn-primary" style="width: 100%;" onclick="App.sendOtpForForgotPassword('${role}')" id="fp-send-otp-btn">
+                                Send Verification Code
+                            </button>
+                        </div>
+
+                        <!-- Step 2: OTP & New Password (Hidden initially) -->
+                        <div id="fp-step-2" style="display: none; margin-top: 1.5rem; animation: slideDown 0.4s ease;">
+                            <div class="form-group">
+                                <label class="form-label">Verification Code (OTP)</label>
+                                <input id="fp-otp" class="form-control" placeholder="Enter 6-digit code" maxlength="6">
+                                <p style="font-size: 0.8rem; color: var(--success); margin-top: 0.5rem;"><i class="ri-mail-check-line"></i> Code sent to your email!</p>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">New Password</label>
+                                <input id="fp-password" type="password" class="form-control" placeholder="••••••••" required>
+                                <small style="color: var(--text-secondary); font-size: 0.75rem;">
+                                    Min 6 chars, uppercase, lowercase, number & symbol
+                                </small>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Confirm Password</label>
+                                <input id="fp-confirm-password" type="password" class="form-control" placeholder="••••••••" required>
+                            </div>
+
+                            <button type="button" class="btn btn-primary" style="width: 100%; padding: 0.8rem; font-size: 1.1rem; border-radius: 8px;" onclick="App.handleForgotPasswordReset('${role}')" id="fp-finish-btn">
+                                Finish
+                            </button>
+                        </div>
                     </div>
                 </div>
+            </div>
             `;
     },
 
